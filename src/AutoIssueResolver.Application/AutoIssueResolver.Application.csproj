@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+      <HintPath>..\..\..\..\..\.nuget\packages\microsoft.extensions.dependencyinjection.abstractions\9.0.4\lib\net9.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Hosting.Abstractions">
+      <HintPath>..\..\..\..\..\.nuget\packages\microsoft.extensions.hosting.abstractions\9.0.4\lib\net9.0\Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Abstractions">
+      <HintPath>..\..\..\..\..\.nuget\packages\microsoft.extensions.logging.abstractions\9.0.4\lib\net9.0\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Options">
+      <HintPath>..\..\..\..\..\.nuget\packages\microsoft.extensions.options\9.0.4\lib\net9.0\Microsoft.Extensions.Options.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Abstractions\AutoIssueResolver.AIConnector.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\.dockerignore">
+      <Link>.dockerignore</Link>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Google\AutoIssueResolver.AIConnector.Google.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.Application\AutoIssueResolver.Application.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Sonarqube\AutoIssueResolver.CodeAnalysisConnector.Sonarqube.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector\AutoIssueResolver.GitConnector.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appSettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appSettings.Development.json" Condition="'$(Configuration)' == 'Debug'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

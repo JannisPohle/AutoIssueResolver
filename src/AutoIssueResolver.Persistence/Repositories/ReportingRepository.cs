@@ -5,10 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutoIssueResolver.Persistence.Repositories;
 
+/// <summary>
+/// Implements the data access layer for interacting with reporting data.
+/// </summary>
 public class ReportingRepository(ReportingContext reportingContext, IRunMetadata metadata): IReportingRepository
 {
   #region Methods
 
+  /// <inheritdoc />
   public async Task InitializeApplicationRun(CancellationToken token = default)
   {
     var applicationRun = new EfApplicationRun
@@ -22,6 +26,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
     await reportingContext.SaveChangesAsync(token);
   }
 
+  /// <inheritdoc />
   public async Task EndApplicationRun(CancellationToken token = default)
   {
     var applicationRun = await FindCurrentApplicationRun(token);
@@ -30,6 +35,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
     await reportingContext.SaveChangesAsync(token);
   }
 
+  /// <inheritdoc />
   public async Task<EfRequest> InitializeRequest(EfRequestType requestType, string? codeSmellReference = null, CancellationToken token = default)
   {
     var applicationRun = await FindCurrentApplicationRun(token);
@@ -51,7 +57,8 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
 
     return request;
   }
-  
+
+  /// <inheritdoc />
   public async Task IncrementRequestRetries(string requestId, CancellationToken token = default)
   {
     var request = await FindRequest(requestId, token);
@@ -60,6 +67,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
     await reportingContext.SaveChangesAsync(token);
   }
 
+  /// <inheritdoc />
   public async Task EndRequest(string requestId, int totalTokensUsed, int? cachedTokens = null, int? promptTokens = null, int? responseTokens = null, CancellationToken token = default)
   {
     var request = await FindRequest(requestId, token);

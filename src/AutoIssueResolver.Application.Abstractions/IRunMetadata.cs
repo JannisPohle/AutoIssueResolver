@@ -5,6 +5,9 @@ namespace AutoIssueResolver.Application.Abstractions;
 /// </summary>
 public interface IRunMetadata
 {
+  /// <summary>
+  /// Correlation ID for the run.
+  /// </summary>
   string CorrelationId { get; set; }
 
   /// <summary>

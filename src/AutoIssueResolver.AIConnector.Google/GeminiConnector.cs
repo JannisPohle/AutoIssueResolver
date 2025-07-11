@@ -21,6 +21,10 @@ namespace AutoIssueResolver.AIConnector.Google;
 //TODO add reporting info to the database; check how we can do this mostly in the base class
 //TODO add logging
 //TODO Setup caching of file contents (only works, if the total file contents are larger than 4000 tokens). Specify json schema for cached files (probably just file name and content) --> See bruno collection for examples
+
+/// <summary>
+/// Implements the <see cref="IAIConnector"/> interface for Google Gemini models.
+/// </summary>
 public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IRunMetadata metadata, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository, ILogger<GeminiConnector> logger): IAIConnector
 {
   #region Static
@@ -34,6 +38,7 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
 
   #region Methods
 
+  /// <inheritdoc />
   public async Task SetupCaching(CancellationToken cancellationToken = default)
   {
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))
@@ -48,6 +53,7 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
     metadata.CacheName = cacheName;
   }
 
+  /// <inheritdoc />
   public async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
   {
     if (AIModels.GeminiFlashLite == model)
@@ -58,6 +64,7 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
     return false;
   }
 
+  /// <inheritdoc />
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
     if (!await CanHandleModel(configuration.Value.Model, cancellationToken))
@@ -90,7 +97,6 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
                      }
                      """.ReplaceLineEndings();
 
-    //TODO check if something needs to be done to ensure that the parts are serialized correctly (because there are different types, and the actual type must be serialized, not the base type) --> yes
     var request = new ChatRequest([new Content([new TextPart(prompt.PromptText)])], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))

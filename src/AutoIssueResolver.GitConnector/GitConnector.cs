@@ -7,10 +7,20 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.GitConnector;
 
-public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitConnector> logger): ISourceCodeConnector
+/// <summary>
+///   Implementation of <see cref="ISourceCodeConnector" />  to interact with Git repositories.
+/// </summary>
+public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogger<GitConnector> logger): ISourceCodeConnector
 {
+  #region Properties
+
   private static string LocalPath => Path.Join(Path.GetTempPath(), "_git");
 
+  #endregion
+
+  #region Methods
+
+  /// <inheritdoc />
   public async Task CloneRepository(CancellationToken cancellationToken = default)
   {
     var cloneOptions = new CloneOptions(new FetchOptions())
@@ -18,13 +28,14 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
       BranchName = configuration.Value.Branch,
       Checkout = true,
     };
+
     if (!string.IsNullOrWhiteSpace(configuration.Value.Credentials?.Username))
     {
-      cloneOptions.FetchOptions.CredentialsProvider = ((url, fromUrl, types) => new UsernamePasswordCredentials()
-                                                        {
-                                                          Username = configuration.Value.Credentials.Username,
-                                                          Password = configuration.Value.Credentials.Password,
-                                                        });
+      cloneOptions.FetchOptions.CredentialsProvider = (url, fromUrl, types) => new UsernamePasswordCredentials
+      {
+        Username = configuration.Value.Credentials.Username,
+        Password = configuration.Value.Credentials.Password,
+      };
     }
 
     Repository.Clone(configuration.Value.Repository, LocalPath, cloneOptions);
@@ -35,17 +46,21 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
     repo.Config.Set("core.autocrlf", "true");
   }
 
+  /// <inheritdoc />
   public async Task CheckoutBranch(CancellationToken cancellationToken = default)
   {
     using var repo = new Repository(LocalPath);
     var branch = repo.Branches[configuration.Value.Branch];
+
     if (branch == null)
     {
       throw new InvalidOperationException($"Branch {configuration.Value.Branch} does not exist.");
     }
+
     Commands.Checkout(repo, branch);
   }
 
+  /// <inheritdoc />
   public async Task CreateBranch(string branchName, CancellationToken cancellationToken = default)
   {
     using var repo = new Repository(LocalPath);
@@ -53,6 +68,7 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
     Commands.Checkout(repo, branch);
   }
 
+  /// <inheritdoc />
   public async Task CommitChanges(string message, CancellationToken cancellationToken = default)
   {
     using var repo = new Repository(LocalPath);
@@ -62,6 +78,7 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
     repo.Commit(message, author, committer);
   }
 
+  /// <inheritdoc />
   public async Task PushChanges(CancellationToken cancellationToken = default)
   {
     try
@@ -79,11 +96,11 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
 
         if (!string.IsNullOrWhiteSpace(configuration.Value.Credentials?.Username))
         {
-          pushOptions.CredentialsProvider = ((url, fromUrl, types) => new UsernamePasswordCredentials()
-                                              {
-                                                Username = configuration.Value.Credentials.Username,
-                                                Password = configuration.Value.Credentials.Password,
-                                              });
+          pushOptions.CredentialsProvider = (url, fromUrl, types) => new UsernamePasswordCredentials
+          {
+            Username = configuration.Value.Credentials.Username,
+            Password = configuration.Value.Credentials.Password,
+          };
         }
 
         repo.Network.Push(remote, repo.Head.CanonicalName, pushOptions);
@@ -95,35 +112,39 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
     }
   }
 
+  /// <inheritdoc />
   public async Task<string> GetFileContent(string filePath, CancellationToken cancellationToken = default)
   {
-    //TODO do we even need to initialize the repository here? Is repo.Info.WorkingDirectory the same as LocalPath?
-
     using var streamReader = new StreamReader(Path.Join(LocalPath, filePath));
     var fileContent = await streamReader.ReadToEndAsync(cancellationToken);
 
     return fileContent;
   }
 
+  /// <inheritdoc />
   public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default)
   {
     var files = new List<SourceFile>();
 
+    //TODO maybe exclude the test projects
     foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
     {
+      var relativePath = Path.GetRelativePath(LocalPath, filePath);
       files.Add(new SourceFile
       {
-        FilePath = filePath,
-        FileContent = await GetFileContent(filePath.Replace(LocalPath, ""), cancellationToken), //Remove local path from file path, since this will be added back in GetFileContent
+        FilePath = relativePath,
+        FileContent = await GetFileContent(relativePath, cancellationToken), //Remove local path from file path, since this will be added back in GetFileContent
       });
     }
 
     return files;
   }
 
+  /// <inheritdoc />
   public async Task UpdateFileContent(string filePath, string content, CancellationToken cancellationToken = default)
   {
     var finalPath = Path.Join(LocalPath, filePath);
+
     if (!File.Exists(finalPath))
     {
       throw new InvalidOperationException($"File {filePath} does not exist.");
@@ -132,4 +153,6 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
     await using var writer = new StreamWriter(finalPath);
     await writer.WriteAsync(content);
   }
+
+  #endregion
 }

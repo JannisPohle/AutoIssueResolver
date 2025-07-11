@@ -35,7 +35,7 @@ var dbConfigurationSection = builder.Configuration.GetSection("Db");
 builder.Services.Configure<DatabaseConfiguration>(dbConfigurationSection);
 builder.Services.Configure<AiAgentConfiguration>(builder.Configuration.GetSection("AiAgent"));
 builder.Services.Configure<CodeAnalysisConfiguration>(builder.Configuration.GetSection("CodeAnalysis"));
-builder.Services.Configure<GitConfiguration>(builder.Configuration.GetSection("GitConfig"));
+builder.Services.Configure<SourceCodeConfiguration>(builder.Configuration.GetSection("GitConfig"));
 
 builder.Services.AddLogging(loggingBuilder =>
 {
@@ -45,19 +45,19 @@ builder.Services.AddLogging(loggingBuilder =>
 
 // Configure the ai endpoints
 builder.Services.AddHttpClient("google", configureClient =>
-{
-  configureClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
-  configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
-}).AddAsKeyed()
-.AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<GeminiConnector>(serviceProvider));
+       {
+         configureClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+       }).AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<GeminiConnector>(serviceProvider));
 
 builder.Services.AddHttpClient("sonarqube", configureClient =>
-{
-  configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl"));
-  configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
-  configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("CodeAnalysis:token"));
-}).AddAsKeyed()
-.AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<SonarqubeConnector>(serviceProvider));
+       {
+         configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("CodeAnalysis:token"));
+       }).AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<SonarqubeConnector>(serviceProvider));
 
 
 // Register the services

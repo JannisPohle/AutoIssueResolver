@@ -16,8 +16,12 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.Application;
 
-public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceScopeFactory scopeFactory, IOptions<AiAgentConfiguration> aiConfiguration, IOptions<CodeAnalysisConfiguration> codeAnalysisConfiguration, IOptions<GitConfiguration> gitConfig, IHostApplicationLifetime hostApplicationLifetime, IRunMetadata metadata): BackgroundService
+/// <summary>
+/// Orchestrates the auto-fix process by integrating AI, code analysis, and source control.
+/// </summary>
+public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceScopeFactory scopeFactory, IOptions<AiAgentConfiguration> aiConfiguration, IOptions<CodeAnalysisConfiguration> codeAnalysisConfiguration, IOptions<SourceCodeConfiguration> gitConfig, IHostApplicationLifetime hostApplicationLifetime, IRunMetadata metadata): BackgroundService
 {
+  /// <inheritdoc />
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
     await using var scope = scopeFactory.CreateAsyncScope();
@@ -65,7 +69,8 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
     hostApplicationLifetime.StopApplication();
   }
 
-  public async Task StopAsync(CancellationToken cancellationToken)
+  /// <inheritdoc />
+  public override async Task StopAsync(CancellationToken cancellationToken)
   {
     logger.LogInformation("Shutting down TestHostedService");
   }
@@ -114,20 +119,6 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
 
   private async Task ReplaceFileContents(Replacement replacement, string filePath, ISourceCodeConnector sourceCodeConnector)
   {
-    // var originalContent = await git.GetFileContent(filePath);
-    // var lines = originalContent.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-    // if (replacement.StartingLine < 1 || replacement.EndLine > lines.Length)
-    // {
-    //   logger.LogWarning("Replacement line numbers are out of range.");
-    //   throw new ArgumentOutOfRangeException("Replacement line numbers are out of range.");
-    // }
-    // var startLine = replacement.StartingLine - 1; // Adjust for zero-based index
-    // var endLine = replacement.EndLine - 1; // Adjust for zero-based index
-    // var newLines = new List<string>(lines);
-    // newLines.RemoveRange(startLine, endLine - startLine + 1); // Remove the lines to be replaced
-    // newLines.InsertRange(startLine, replacement.NewCode.Split(new[] { Environment.NewLine }, StringSplitOptions.None)); // Insert the new lines
-    // var newContent = string.Join(Environment.NewLine, newLines);
-    // await git.UpdateFileContent(filePath, newContent);
     await sourceCodeConnector.UpdateFileContent(filePath, replacement.NewCode);
   }
 

@@ -3,12 +3,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutoIssueResolver.Persistence;
 
+/// <summary>
+/// Base DbContext for reporting application runs and requests.
+/// </summary>
 public abstract class ReportingContext: DbContext
 {
   #region Properties
 
+  /// <summary>
+  /// Application runs tracked in the context.
+  /// </summary>
   public DbSet<EfApplicationRun> ApplicationRuns { get; set; }
 
+  /// <summary>
+  /// Requests tracked in the context.
+  /// </summary>
   public DbSet<EfRequest> Requests { get; set; }
 
   #endregion
@@ -38,7 +47,7 @@ public abstract class ReportingContext: DbContext
   }
 
   /// <summary>
-  ///   Apply database specific configuration for the models
+  ///   Apply database specific configuration for the models.
   /// </summary>
   /// <param name="modelBuilder"></param>
   protected abstract void ApplyModelConfiguration(ModelBuilder modelBuilder);

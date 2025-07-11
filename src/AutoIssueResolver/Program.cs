@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using AutoIssueResolver;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
@@ -47,14 +48,16 @@ builder.Services.AddHttpClient("google", configureClient =>
 {
   configureClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
   configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
-}).AddAsKeyed(); // TODO add retry policy for rate limiting
+}).AddAsKeyed()
+.AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<GeminiConnector>(serviceProvider));
 
 builder.Services.AddHttpClient("sonarqube", configureClient =>
 {
   configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl"));
   configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
   configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("CodeAnalysis:token"));
-}).AddAsKeyed(); // TODO add retry policy
+}).AddAsKeyed()
+.AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<SonarqubeConnector>(serviceProvider));
 
 
 // Register the services

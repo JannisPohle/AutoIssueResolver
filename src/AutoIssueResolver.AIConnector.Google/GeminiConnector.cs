@@ -53,11 +53,18 @@ public class GeminiConnector(
       return;
     }
 
-    var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
-    ;
-    var cacheName = await CreateCache(cache, cancellationToken);
+    try
+    {
+      var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
 
-    metadata.CacheName = cacheName;
+      var cacheName = await CreateCache(cache, cancellationToken);
+
+      metadata.CacheName = cacheName;
+    }
+    catch (Exception e)
+    {
+      logger.LogError(e, "Unknown error occured while setting up caching for Gemini connector");
+    }
   }
 
   /// <inheritdoc />
@@ -139,7 +146,7 @@ public class GeminiConnector(
   private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
   {
     var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CacheCreation, token: cancellationToken);
-    UsageMetadata? metadata = null;
+    UsageMetadata? usageMetadata = null;
 
     try
     {
@@ -149,7 +156,9 @@ public class GeminiConnector(
       {
         if (response.StatusCode != HttpStatusCode.BadRequest)
         {
-          throw new Exception($"Failed to create cache in Gemini ({response.ReasonPhrase}): {await response.Content.ReadAsStringAsync(cancellationToken)}");
+          logger.LogWarning("Failed to create cache in Gemini: {ReasonPhrase} - {Content}. Cached content will be added to the individual requests", response.ReasonPhrase, await response.Content.ReadAsStringAsync(cancellationToken));
+
+          return null;
         }
 
         //Assume, that there is just not enough content to cache, so we just return null
@@ -160,13 +169,13 @@ public class GeminiConnector(
       }
 
       var cachedContentResponse = await response.Content.ReadFromJsonAsync<CachedContentResponse>(cancellationToken);
-      metadata = cachedContentResponse?.UsageMetadata;
+      usageMetadata = cachedContentResponse?.UsageMetadata;
 
       return cachedContentResponse?.Name;
     }
     finally
     {
-      await reportingRepository.EndRequest(requestReference.Id, metadata?.TotalTokenCount ?? 0, token: cancellationToken);
+      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, token: cancellationToken);
     }
   }
 

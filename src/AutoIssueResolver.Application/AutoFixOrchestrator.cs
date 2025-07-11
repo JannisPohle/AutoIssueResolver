@@ -28,53 +28,84 @@ public class AutoFixOrchestrator(
   IHostApplicationLifetime hostApplicationLifetime,
   IRunMetadata metadata): BackgroundService
 {
+  #region Members
+
+  private IAIConnector _aiConnector = null!;
+  private ICodeAnalysisConnector _codeAnalysisConnector = null!;
+  private ISourceCodeConnector _git = null!;
+  private IReportingRepository _reportingRepository = null!;
+
+  #endregion
+
   #region Methods
 
   /// <inheritdoc />
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
-    await using var scope = scopeFactory.CreateAsyncScope();
     logger.LogInformation("Starting TestHostedService");
 
-    var branchName = $"auto-fix/{aiConfiguration.Value.Model.GetModelVendor()}/{aiConfiguration.Value.Model.GetModelName()}/{metadata.CorrelationId}-auto-fix";
-    metadata.BranchName = branchName;
+    ValidateConfiguration();
+    logger.LogDebug("Configuration validated");
 
-    var reportingRepository = scope.ServiceProvider.GetRequiredService<IReportingRepository>();
-    await reportingRepository.InitializeApplicationRun(stoppingToken);
+    PrepareMetadata();
+    logger.LogDebug("Metadata prepared: BranchName={BranchName}", metadata.BranchName);
+
+    await using var scope = PrepareRequiredServices();
+    logger.LogDebug("Required services prepared");
+
+    await _reportingRepository!.InitializeApplicationRun(stoppingToken);
+    logger.LogInformation("Application run initialized");
 
     try
     {
-      var codeAnalysisConnector = FindCodeAnalysisConnector(scope);
-      var aiConnector = FindAIConnector(scope);
-      var git = scope.ServiceProvider.GetRequiredService<ISourceCodeConnector>();
-      await git.CloneRepository(stoppingToken);
-      await git.CheckoutBranch(stoppingToken);
-      await git.CreateBranch(branchName, stoppingToken);
+      OperationResult result;
 
-      await aiConnector.SetupCaching(stoppingToken);
-
-      var issues = await codeAnalysisConnector.GetIssues(new Project(codeAnalysisConfiguration.Value.ProjectKey, "cs" /*TODO make this configurable (list)*/), stoppingToken);
-      logger.LogInformation("Issues ({issueCount}): {issues}", issues.Count, issues);
-
-      foreach (var issue in issues.Take(1))
+      logger.LogDebug("Setting up source code repository");
+      if (!(result = await SetupSourceCode(stoppingToken)).CanContinue)
       {
-        var rule = await codeAnalysisConnector.GetRule(issue.RuleIdentifier, stoppingToken);
-        var prompt = await CreatePrompt(issue, rule, git);
-        var response = await aiConnector.GetResponse(prompt, stoppingToken);
-        logger.LogInformation("Response: {response}", response);
-        await ReplaceFileContents(response.CodeReplacement.First(), issue.FilePath, git); //TODO replace multiple files, if necessary
-        await git.CommitChanges(GetCommitMessage(issue, rule), stoppingToken);
-        logger.LogInformation("AI Response retrieved successfully");
+        logger.LogError("Source code setup failed, stopping application");
+        StopApplication(result);
+        return;
+      }
+      logger.LogDebug("Source code setup completed successfully");
+
+      logger.LogDebug("Setting up AI connector caching");
+      await _aiConnector.SetupCaching(stoppingToken);
+
+      logger.LogDebug("Retrieving issues from code analysis");
+      (var issues, result) = await GetIssues(stoppingToken);
+
+      if (!result.CanContinue)
+      {
+        logger.LogError("Failed to retrieve issues, stopping application");
+        StopApplication(result);
+        return;
       }
 
-      logger.LogInformation("All issues have been worked on, pushing changes to remote repository");
-      await git.PushChanges(stoppingToken);
+      logger.LogInformation("Issues ({IssueCount}): {Issues}", issues.Count, issues);
+
+      foreach (var issue in issues)
+      {
+        logger.LogDebug("Processing issue: {RuleId} in {FilePath}", issue.RuleIdentifier, issue.FilePath);
+        await FixIssue(issue, stoppingToken);
+      }
+
+      logger.LogDebug("All issues have been worked on, pushing changes to remote repository");
+      await _git.PushChanges(stoppingToken);
+      logger.LogInformation("All issues have been worked on and changes are pushed to remote repository");
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "Unhandled exception in orchestrator");
+      StopApplication(OperationResult.FatalResult(ex, ExitCodes.UnknownError));
     }
     finally
     {
-      await reportingRepository.EndApplicationRun(stoppingToken);
+      logger.LogInformation("Ending application run");
+      await _reportingRepository.EndApplicationRun(stoppingToken);
     }
 
+    logger.LogInformation("Stopping application");
     hostApplicationLifetime.StopApplication();
   }
 
@@ -82,39 +113,63 @@ public class AutoFixOrchestrator(
   public override async Task StopAsync(CancellationToken cancellationToken)
   {
     logger.LogInformation("Shutting down TestHostedService");
+    await base.StopAsync(cancellationToken);
   }
 
-  private IAIConnector FindAIConnector(AsyncServiceScope scope)
+  private async Task<(List<Issue>, OperationResult)> GetIssues(CancellationToken stoppingToken)
   {
-    var aiConnector = scope.ServiceProvider.GetKeyedService<IAIConnector>(aiConfiguration.Value.Model);
-
-    if (aiConnector == null)
+    try
     {
-      throw new InvalidOperationException($"No AI connector found for model {aiConfiguration.Value.Model}");
+      logger.LogDebug("Requesting issues from code analysis connector");
+      var issues = await _codeAnalysisConnector.GetIssues(new Project(codeAnalysisConfiguration.Value.ProjectKey!, "cs"), stoppingToken);
+
+      logger.LogInformation("Retrieved {Count} issues from code analysis", issues.Count);
+      return (issues, OperationResult.SuccessfulResult);
     }
-
-    return aiConnector;
-  }
-
-  private ICodeAnalysisConnector FindCodeAnalysisConnector(AsyncServiceScope scope)
-  {
-    var codeAnalysisConnector = scope.ServiceProvider.GetKeyedService<ICodeAnalysisConnector>(codeAnalysisConfiguration.Value.Type);
-
-    if (codeAnalysisConnector == null)
+    catch (Exception e)
     {
-      throw new InvalidOperationException($"No Code Analysis connector found for model {codeAnalysisConfiguration.Value.Type}");
+      logger.LogError(e, "Error retrieving issues from code analysis");
+      return ([], OperationResult.FatalResult(e, ExitCodes.CodeAnalysisError));
     }
-
-    return codeAnalysisConnector;
   }
 
-  private async Task<Prompt> CreatePrompt(Issue issue, Rule rule, ISourceCodeConnector sourceCodeConnector)
+  private async Task FixIssue(Issue issue, CancellationToken stoppingToken)
   {
-    //TODO introduce CoT prompt
-    //TODO optimize prompt for caching (ensure variable content is placed at the end)
-    //TODO move some general restrictions into the system prompt (e.g. "You are a code assistant. Your task is to fix issues in code based on static code analysis.", // "Please provide the full updated file contents that fix the issue.")
-    var fileContent = await sourceCodeConnector.GetFileContent(issue.FilePath);
+    try
+    {
+      logger.LogTrace("Getting rule for issue {RuleId}", issue.RuleIdentifier);
+      var rule = await _codeAnalysisConnector.GetRule(issue.RuleIdentifier, stoppingToken);
 
+      logger.LogDebug("Creating prompt for issue {RuleId}", issue.RuleIdentifier);
+      var prompt = await CreatePrompt(issue, rule);
+
+      logger.LogDebug("Requesting AI response for issue {RuleId}", issue.RuleIdentifier);
+      var response = await _aiConnector.GetResponse(prompt, stoppingToken);
+
+      logger.LogDebug("AI response received for issue {RuleId}", issue.RuleIdentifier);
+      logger.LogDebug("AI Response: {Response}", response);
+
+      await ReplaceFileContents(response.CodeReplacement);
+
+      logger.LogDebug("Committing changes for issue {RuleId}", issue.RuleIdentifier);
+      await _git.CommitChanges(GetCommitMessage(issue, rule), stoppingToken);
+
+      logger.LogInformation("Issue {RuleId} fixed and committed", issue.RuleIdentifier);
+    }
+    catch (Exception e)
+    {
+      logger.LogWarning(e, "Failed to fix issue {RuleId} in {FilePath}", issue.RuleIdentifier, issue.FilePath);
+    }
+  }
+
+  //TODO introduce CoT prompt
+  //TODO optimize prompt for caching (ensure variable content is placed at the end)
+  private async Task<Prompt> CreatePrompt(Issue issue, Rule rule)
+  {
+    logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);
+    var fileContent = await _git.GetFileContent(issue.FilePath);
+
+    logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
     return new Prompt($$"""
                         You are a code assistant. Your task is to fix issues in code based on static code analysis.
 
@@ -131,14 +186,140 @@ public class AutoFixOrchestrator(
                         """);
   }
 
-  private async Task ReplaceFileContents(Replacement replacement, string filePath, ISourceCodeConnector sourceCodeConnector)
+  private async Task ReplaceFileContents(List<Replacement> replacements)
   {
-    await sourceCodeConnector.UpdateFileContent(filePath, replacement.NewCode);
+    foreach (var replacement in replacements)
+    {
+      try
+      {
+        //TODO maybe improve, how to deal with files not found by the name provided from the AI
+        logger.LogInformation("Updating file: {FileName}", replacement.FileName);
+        await _git.UpdateFileContent(replacement.FileName, replacement.NewCode);
+        logger.LogDebug("File {FileName} updated", replacement.FileName);
+      }
+      catch (Exception e)
+      {
+        logger.LogWarning(e, "Failed to update file {FileName}", replacement.FileName);
+      }
+    }
   }
 
   private string GetCommitMessage(Issue issue, Rule rule)
   {
-    return gitConfig.Value.CommitMessageTemplate.Replace("{{ID}}", rule.RuleId).Replace("{{TITLE}}", rule.Title).Replace("{{FILE_NAME}}", issue.FilePath);
+    var message = gitConfig.Value.CommitMessageTemplate.Replace("{{ID}}", rule.RuleId).Replace("{{TITLE}}", rule.Title).Replace("{{FILE_NAME}}", issue.FilePath);
+    logger.LogDebug("Generated commit message: {CommitMessage}", message);
+    return message;
+  }
+
+  private void PrepareMetadata()
+  {
+    var branchName = $"auto-fix/{aiConfiguration.Value.Model.GetModelVendor()}/{aiConfiguration.Value.Model.GetModelName()}/{metadata.CorrelationId}-auto-fix";
+    metadata.BranchName = branchName;
+    logger.LogDebug("Prepared metadata with branch name: {BranchName}", branchName);
+  }
+
+  private void ValidateConfiguration()
+  {
+    // Validate AI configuration
+    if (aiConfiguration.Value == null || aiConfiguration.Value.Model == AIModels.None || string.IsNullOrWhiteSpace(aiConfiguration.Value.Token))
+    {
+      logger.LogError("Invalid AI configuration: Model or Token is missing.");
+      throw new InvalidOperationException("AI configuration is invalid. Model and Token must be set.");
+    }
+
+    // Validate Code Analysis configuration
+    if (codeAnalysisConfiguration.Value == null || string.IsNullOrWhiteSpace(codeAnalysisConfiguration.Value.ProjectKey) || codeAnalysisConfiguration.Value.Type == CodeAnalysisTypes.None)
+    {
+      logger.LogError("Invalid Code Analysis configuration: ProjectKey or Type is missing.");
+      throw new InvalidOperationException("Code Analysis configuration is invalid. ProjectKey and Type must be set.");
+    }
+
+    // Validate Git configuration
+    if (gitConfig.Value == null || string.IsNullOrWhiteSpace(gitConfig.Value.Repository) || string.IsNullOrWhiteSpace(gitConfig.Value.Branch) || string.IsNullOrWhiteSpace(gitConfig.Value.CommitMessageTemplate))
+    {
+      logger.LogError("Invalid Git configuration: Repository, Branch, or CommitMessageTemplate is missing.");
+      throw new InvalidOperationException("Git configuration is invalid. Repository, Branch, and CommitMessageTemplate must be set.");
+    }
+
+    // Validate Git credentials
+    if (gitConfig.Value.Credentials != null && !string.IsNullOrWhiteSpace(gitConfig.Value.Credentials.Username) && string.IsNullOrWhiteSpace(gitConfig.Value.Credentials.Password))
+    {
+      logger.LogError("Invalid Git credentials: Username is set, but password is missing.");
+      throw new InvalidOperationException("Invalid Git credentials: Username is set, but password is missing");
+    }
+
+    logger.LogDebug("ValidateConfiguration completed successfully.");
+  }
+
+  private AsyncServiceScope PrepareRequiredServices()
+  {
+    logger.LogDebug("Preparing required services");
+    var scope = scopeFactory.CreateAsyncScope();
+    _codeAnalysisConnector = FindCodeAnalysisConnector(scope);
+    _aiConnector = FindAiConnector(scope);
+    _git = scope.ServiceProvider.GetRequiredService<ISourceCodeConnector>();
+    _reportingRepository = scope.ServiceProvider.GetRequiredService<IReportingRepository>();
+    logger.LogDebug("Required services resolved");
+    return scope;
+  }
+
+  private async Task<OperationResult> SetupSourceCode(CancellationToken stoppingToken)
+  {
+    try
+    {
+      logger.LogDebug("Cloning repository");
+      await _git.CloneRepository(stoppingToken);
+
+      logger.LogDebug("Checking out branch");
+      await _git.CheckoutBranch(stoppingToken);
+
+      logger.LogDebug("Creating new branch: {BranchName}", metadata.BranchName);
+      await _git.CreateBranch(metadata.BranchName!, stoppingToken);
+    }
+    catch (Exception e)
+    {
+      logger.LogError(e, "Failed to setup source code");
+      return OperationResult.FatalResult(e, ExitCodes.SourceCodeConnectionError);
+    }
+
+    return OperationResult.SuccessfulResult;
+  }
+
+  private IAIConnector FindAiConnector(AsyncServiceScope scope)
+  {
+    logger.LogDebug("Resolving AI connector for model {Model}", aiConfiguration.Value.Model);
+    var aiConnector = scope.ServiceProvider.GetKeyedService<IAIConnector>(aiConfiguration.Value.Model);
+
+    if (aiConnector == null)
+    {
+      logger.LogError("No AI connector found for model {Model}", aiConfiguration.Value.Model);
+      throw new InvalidOperationException($"No AI connector found for model {aiConfiguration.Value.Model}");
+    }
+
+    logger.LogDebug("AI connector resolved");
+    return aiConnector;
+  }
+
+  private ICodeAnalysisConnector FindCodeAnalysisConnector(AsyncServiceScope scope)
+  {
+    logger.LogDebug("Resolving Code Analysis connector for type {Type}", codeAnalysisConfiguration.Value.Type);
+    var codeAnalysisConnector = scope.ServiceProvider.GetKeyedService<ICodeAnalysisConnector>(codeAnalysisConfiguration.Value.Type);
+
+    if (codeAnalysisConnector == null)
+    {
+      logger.LogError("No Code Analysis connector found for type {Type}", codeAnalysisConfiguration.Value.Type);
+      throw new InvalidOperationException($"No Code Analysis connector found for model {codeAnalysisConfiguration.Value.Type}");
+    }
+
+    logger.LogDebug("Code Analysis connector resolved");
+    return codeAnalysisConnector;
+  }
+
+  private void StopApplication(OperationResult result)
+  {
+    logger.LogInformation("Stopping application with exit code {ExitCode}", result.ExitCodes);
+    Environment.ExitCode = (int) result.ExitCodes;
+    hostApplicationLifetime.StopApplication();
   }
 
   #endregion

@@ -23,6 +23,8 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
   /// <inheritdoc />
   public async Task CloneRepository(CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Cloning repository {Repository} (branch: {Branch}) to {LocalPath}", configuration.Value.Repository, configuration.Value.Branch, LocalPath);
+
     var cloneOptions = new CloneOptions(new FetchOptions())
     {
       BranchName = configuration.Value.Branch,
@@ -44,43 +46,53 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     repo.Config.Set("user.name", "\ud83e\udd16 AutoIssueResolver Bot");
     repo.Config.Set("user.email", "robot@git.com");
     repo.Config.Set("core.autocrlf", "true");
+
+    logger.LogInformation("Repository cloned and configured at {LocalPath}", LocalPath);
   }
 
   /// <inheritdoc />
   public async Task CheckoutBranch(CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Checking out branch {Branch}", configuration.Value.Branch);
     using var repo = new Repository(LocalPath);
     var branch = repo.Branches[configuration.Value.Branch];
 
     if (branch == null)
     {
+      logger.LogError("Branch {Branch} does not exist.", configuration.Value.Branch);
       throw new InvalidOperationException($"Branch {configuration.Value.Branch} does not exist.");
     }
 
     Commands.Checkout(repo, branch);
+    logger.LogInformation("Checked out branch {Branch}", configuration.Value.Branch);
   }
 
   /// <inheritdoc />
   public async Task CreateBranch(string branchName, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Creating and checking out new branch {BranchName}", branchName);
     using var repo = new Repository(LocalPath);
     var branch = repo.Branches.Add(branchName, repo.Head.Tip);
     Commands.Checkout(repo, branch);
+    logger.LogInformation("Created and checked out branch {BranchName}", branchName);
   }
 
   /// <inheritdoc />
   public async Task CommitChanges(string message, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Committing changes with message: {Message}", message);
     using var repo = new Repository(LocalPath);
     Commands.Stage(repo, "*");
     var author = repo.Config.BuildSignature(DateTimeOffset.Now);
     var committer = author;
     repo.Commit(message, author, committer);
+    logger.LogInformation("Changes committed.");
   }
 
   /// <inheritdoc />
   public async Task PushChanges(CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Pushing changes to remote repository...");
     try
     {
       using (var repo = new Repository(LocalPath))
@@ -89,6 +101,7 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
 
         if (remote == null)
         {
+          logger.LogError("Remote 'origin' does not exist.");
           throw new InvalidOperationException("Remote 'origin' does not exist.");
         }
 
@@ -105,25 +118,29 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
 
         repo.Network.Push(remote, repo.Head.CanonicalName, pushOptions);
       }
+      logger.LogInformation("Changes pushed to remote repository.");
     }
     catch (AccessViolationException e)
     {
-      logger.LogWarning(e, "Error while pusing changes to the remote");
+      logger.LogWarning(e, "Error while pushing changes to the remote");
     }
   }
 
   /// <inheritdoc />
   public async Task<string> GetFileContent(string filePath, CancellationToken cancellationToken = default)
   {
+    logger.LogDebug("Getting file content for {FilePath}", filePath);
     using var streamReader = new StreamReader(Path.Join(LocalPath, filePath));
     var fileContent = await streamReader.ReadToEndAsync(cancellationToken);
 
+    logger.LogTrace("Read {Length} characters from {FilePath}", fileContent.Length, filePath);
     return fileContent;
   }
 
   /// <inheritdoc />
   public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Getting all files with extension filter {ExtensionFilter}", extensionFilter);
     var files = new List<SourceFile>();
 
     //TODO maybe exclude the test projects
@@ -138,21 +155,25 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
       });
     }
 
+    logger.LogInformation("Found {FileCount} files with extension filter {ExtensionFilter}", files.Count, extensionFilter);
     return files;
   }
 
   /// <inheritdoc />
   public async Task UpdateFileContent(string filePath, string content, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Updating file content for {FilePath}", filePath);
     var finalPath = Path.Join(LocalPath, filePath);
 
     if (!File.Exists(finalPath))
     {
+      logger.LogError("File {FilePath} does not exist.", filePath);
       throw new InvalidOperationException($"File {filePath} does not exist.");
     }
 
     await using var writer = new StreamWriter(finalPath);
     await writer.WriteAsync(content);
+    logger.LogInformation("File {FilePath} updated.", filePath);
   }
 
   #endregion

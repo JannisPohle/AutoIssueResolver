@@ -3,11 +3,12 @@ using AutoIssueResolver.CodeAnalysisConnector.Abstractions;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models;
 using AutoIssueResolver.CodeAnalysisConnector.Sonarqube.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TextRange = AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models.TextRange;
 
 namespace AutoIssueResolver.CodeAnalysisConnector.Sonarqube;
 
-public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient httpClient): ICodeAnalysisConnector
+public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient httpClient, ILogger<SonarqubeConnector> logger): ICodeAnalysisConnector
 {
   #region Static
 
@@ -20,10 +21,12 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
   public async Task<List<Issue>> GetIssues(Project project, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Requesting issues for project {ProjectName} ({Language}) from Sonarqube", project.ProjectName, project.Language);
     var response = await httpClient.GetAsync($"{API_PATH_ISSUES}?components={project.ProjectName}&languages={project.Language}", cancellationToken);
 
     if (!response.IsSuccessStatusCode)
     {
+      logger.LogError("Failed to get issues from Sonarqube: {ReasonPhrase}", response.ReasonPhrase);
       throw new Exception($"Failed to get issues from Sonarqube: {response.ReasonPhrase}");
     }
 
@@ -31,18 +34,32 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     if (issues == null)
     {
+      logger.LogError("Failed to deserialize issues response from Sonarqube");
       throw new Exception("Failed to deserialize issues response from Sonarqube");
     }
 
-    return issues.Issues.Select(issue => new Issue(new RuleIdentifier(issue.Rule), issues.Components.First(component => component.Key == issue.Component).Path, new TextRange(issue.TextRange.StartLine, issue.TextRange.EndLine))).ToList();
+    logger.LogInformation("Retrieved {IssueCount} issues from Sonarqube", issues.Issues.Count);
+
+    var mappedIssues = issues.Issues.Select(issue =>
+      new Issue(
+        new RuleIdentifier(issue.Rule),
+        issues.Components.First(component => component.Key == issue.Component).Path,
+        new TextRange(issue.TextRange.StartLine, issue.TextRange.EndLine)
+      )).ToList();
+
+    logger.LogDebug("Mapped {Count} issues to internal model", mappedIssues.Count);
+
+    return mappedIssues;
   }
 
   public async Task<Rule> GetRule(RuleIdentifier identifier, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Requesting rule {RuleId} from Sonarqube", identifier.RuleId);
     var response = await httpClient.GetAsync($"{API_PATH_RULES}?rule_key={identifier.RuleId}", cancellationToken);
 
     if (!response.IsSuccessStatusCode)
     {
+      logger.LogError("Failed to get rule from Sonarqube: {ReasonPhrase}", response.ReasonPhrase);
       throw new Exception($"Failed to get rule from Sonarqube: {response.ReasonPhrase}");
     }
 
@@ -50,6 +67,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     if (rules == null)
     {
+      logger.LogError("Failed to deserialize rule response from Sonarqube");
       throw new Exception("Failed to deserialize rule response from Sonarqube");
     }
 
@@ -57,8 +75,11 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     if (rule == null)
     {
+      logger.LogWarning("Rule with ID {RuleId} not found in Sonarqube", identifier.RuleId);
       throw new Exception($"Rule with ID {identifier.RuleId} not found in Sonarqube");
     }
+
+    logger.LogDebug("Retrieved rule {RuleId}: {RuleName}", rule.Key, rule.Name);
 
     return new Rule(rule.Key, rule.Name, rule.HtmlDesc);
   }

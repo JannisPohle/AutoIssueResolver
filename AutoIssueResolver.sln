@@ -26,6 +26,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.Applicati
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.Application", "src\AutoIssueResolver.Application\AutoIssueResolver.Application.csproj", "{B4B31EB4-0278-4C2F-BBE3-57E7F613C557}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Persistence", "Persistence", "{9B4D4AEE-FE05-4C9D-B72F-89F82CFA7878}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.Persistence.Abstractions", "src\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj", "{045DBDD7-275A-40C6-8D7E-C3A389846B4F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.Persistence", "src\AutoIssueResolver.Persistence\AutoIssueResolver.Persistence.csproj", "{BA59C416-62DA-4C45-BF0C-E31773F80F05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.Persistence.Sqlite", "src\AutoIssueResolver.Persistence.Sqlite\AutoIssueResolver.Persistence.Sqlite.csproj", "{2BF2C963-6BB6-498A-91DA-01DF96081C1A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,6 +76,18 @@ Global
 		{B4B31EB4-0278-4C2F-BBE3-57E7F613C557}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4B31EB4-0278-4C2F-BBE3-57E7F613C557}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4B31EB4-0278-4C2F-BBE3-57E7F613C557}.Release|Any CPU.Build.0 = Release|Any CPU
+		{045DBDD7-275A-40C6-8D7E-C3A389846B4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{045DBDD7-275A-40C6-8D7E-C3A389846B4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{045DBDD7-275A-40C6-8D7E-C3A389846B4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{045DBDD7-275A-40C6-8D7E-C3A389846B4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA59C416-62DA-4C45-BF0C-E31773F80F05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA59C416-62DA-4C45-BF0C-E31773F80F05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA59C416-62DA-4C45-BF0C-E31773F80F05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA59C416-62DA-4C45-BF0C-E31773F80F05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BF2C963-6BB6-498A-91DA-01DF96081C1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BF2C963-6BB6-498A-91DA-01DF96081C1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BF2C963-6BB6-498A-91DA-01DF96081C1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BF2C963-6BB6-498A-91DA-01DF96081C1A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4514C9B7-FAB8-468B-9F8D-ED15D3D58548} = {A1D5D374-A628-4440-A772-EE082A459E03}
@@ -78,5 +98,8 @@ Global
 		{C510BCEC-5802-41BF-947D-EE1922759B08} = {B504A265-FD74-4F3E-A7D9-9294E3C64CAC}
 		{1FAB64E0-CB49-4530-8B22-15744905D42C} = {C2810FC5-AB70-4794-8A81-54622D4D4AEF}
 		{B4B31EB4-0278-4C2F-BBE3-57E7F613C557} = {C2810FC5-AB70-4794-8A81-54622D4D4AEF}
+		{045DBDD7-275A-40C6-8D7E-C3A389846B4F} = {9B4D4AEE-FE05-4C9D-B72F-89F82CFA7878}
+		{BA59C416-62DA-4C45-BF0C-E31773F80F05} = {9B4D4AEE-FE05-4C9D-B72F-89F82CFA7878}
+		{2BF2C963-6BB6-498A-91DA-01DF96081C1A} = {9B4D4AEE-FE05-4C9D-B72F-89F82CFA7878}
 	EndGlobalSection
 EndGlobal

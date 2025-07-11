@@ -12,4 +12,13 @@ public static class AIModelExtensions
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
     };
   }
+
+  public static string GetModelVendor(this AIModels model)
+  {
+    return model switch
+    {
+      AIModels.GeminiFlashLite => "Google",
+      _ => throw new ArgumentOutOfRangeException(nameof(model), model, null)
+    };
+  }
 }

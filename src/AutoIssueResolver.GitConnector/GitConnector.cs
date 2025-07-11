@@ -1,3 +1,4 @@
+using AutoIssueResolver.Application.Abstractions.Models;
 using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.GitConnector.Abstractions.Configuration;
 using LibGit2Sharp;
@@ -6,13 +7,17 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.GitConnector;
 
-public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitConnector> logger): IGit
+public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitConnector> logger): ISourceCodeConnector
 {
   private static string LocalPath => Path.Join(Path.GetTempPath(), "_git");
 
   public async Task CloneRepository(CancellationToken cancellationToken = default)
   {
-    var cloneOptions = new CloneOptions(new FetchOptions());
+    var cloneOptions = new CloneOptions(new FetchOptions())
+    {
+      BranchName = configuration.Value.Branch,
+      Checkout = true,
+    };
     if (!string.IsNullOrWhiteSpace(configuration.Value.Credentials?.Username))
     {
       cloneOptions.FetchOptions.CredentialsProvider = ((url, fromUrl, types) => new UsernamePasswordCredentials()
@@ -92,12 +97,28 @@ public class GitConnector(IOptions<GitConfiguration> configuration, ILogger<GitC
 
   public async Task<string> GetFileContent(string filePath, CancellationToken cancellationToken = default)
   {
-    using var repo = new Repository(LocalPath);
+    //TODO do we even need to initialize the repository here? Is repo.Info.WorkingDirectory the same as LocalPath?
 
-    using var streamReader = new StreamReader(Path.Join(repo.Info.WorkingDirectory, filePath));
+    using var streamReader = new StreamReader(Path.Join(LocalPath, filePath));
     var fileContent = await streamReader.ReadToEndAsync(cancellationToken);
 
     return fileContent;
+  }
+
+  public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default)
+  {
+    var files = new List<SourceFile>();
+
+    foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
+    {
+      files.Add(new SourceFile
+      {
+        FilePath = filePath,
+        FileContent = await GetFileContent(filePath.Replace(LocalPath, ""), cancellationToken), //Remove local path from file path, since this will be added back in GetFileContent
+      });
+    }
+
+    return files;
   }
 
   public async Task UpdateFileContent(string filePath, string content, CancellationToken cancellationToken = default)

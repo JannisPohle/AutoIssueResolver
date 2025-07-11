@@ -1,23 +1,52 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions;
+using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Google.Models;
+using AutoIssueResolver.Application.Abstractions;
+using AutoIssueResolver.GitConnector.Abstractions;
+using AutoIssueResolver.Persistence.Abstractions.Entities;
+using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.AIConnector.Google;
 
-public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient): IAIConnector
+//TODO create a base class for AI Connectors (e.g. containing the system prompt, the response schema, ...)
+//TODO add reporting info to the database; check how we can do this mostly in the base class
+//TODO add logging
+//TODO Setup caching of file contents (only works, if the total file contents are larger than 4000 tokens). Specify json schema for cached files (probably just file name and content) --> See bruno collection for examples
+public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IRunMetadata metadata, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository, ILogger<GeminiConnector> logger): IAIConnector
 {
   #region Static
 
-  private const string API_PATH_CHAT = "chat/completions";
+  private const string PLACEHOLDER_MODEL_NAME = "{{MODEL}}";
+
+  private const string API_PATH_CHAT = $"v1beta/models/{PLACEHOLDER_MODEL_NAME}:generateContent";
+  private const string API_PATH_CACHE = "v1beta/cachedContents";
 
   #endregion
 
   #region Methods
+
+  public async Task SetupCaching(CancellationToken cancellationToken = default)
+  {
+    if (!string.IsNullOrWhiteSpace(metadata.CacheName))
+    {
+      // Cache already exists, no need to create it again
+      return;
+    }
+
+    var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");;
+    var cacheName = await CreateCache(cache, cancellationToken);
+
+    metadata.CacheName = cacheName;
+  }
 
   public async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
   {
@@ -31,40 +60,51 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
 
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
-    if (!await CanHandleModel(prompt.Model, cancellationToken))
+    if (!await CanHandleModel(configuration.Value.Model, cancellationToken))
     {
       throw new InvalidOperationException("The model is not supported by this connector.");
     }
 
+    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CodeGeneration, token: cancellationToken);
+
     var jsonSchema = """
                      {
-                       "description": "Replacements",
-                       "type": "object",
-                       "properties": {
-                         "newCode": {
-                           "type": "string",
-                           "description": "The updated code that should replace the old code to fix the issue."
-                         },
-                         "startingLine": {
-                           "type": "integer",
-                           "description": "The line number of the original file content where the new code starts to replace existing code."
-                         },
-                         "endLine": {
-                           "type": "integer",
-                           "description": "The line number of the original file content where the new code ends to replace existing code"
-                         }
-                       },
-                       "required": ["newCode", "startingLine", "endLine"]
+                       "title": "Replacements",
+                       "description": "Contains a list of replacements that should be done in the code to fix the issue.",
+                       "type": "array",
+                        "items": {
+                          "type": "object",
+                          "description": "Replacement for a specific file, that should be applied to fix an issue.",
+                          "properties": {
+                            "newCode": {
+                              "type": "string",
+                              "description": "The updated code that should replace the old code to fix the issue. Should contain the complete code for the file that should be changed"
+                            },
+                            "fileName": {
+                              "type": "string",
+                              "description": "The name of the file that should be changed"
+                            }
+                          },
+                          "required": ["newCode", "fileName"]
+                       }
                      }
                      """.ReplaceLineEndings();
 
-    var request = new ChatRequest(
-                                  prompt.Model.GetModelName(),
-                                  [new Message("user", prompt.PromptText)],
-                                  new ResponseFormat("json_schema", new JsonSchema("Code Replacements", JsonObject.Parse(jsonSchema)))
-                                 );
+    //TODO check if something needs to be done to ensure that the parts are serialized correctly (because there are different types, and the actual type must be serialized, not the base type) --> yes
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText)])], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
-    var response = await httpClient.PostAsJsonAsync(API_PATH_CHAT, request, cancellationToken);
+    if (!string.IsNullOrWhiteSpace(metadata.CacheName))
+    {
+      request.CachedContent = metadata.CacheName;
+    }else
+    {
+      // If no cache is available, we assume that the content is too small to be cached, so we send all the conent in the request
+      var cacheContent = await CreateCacheContent();
+      request.Contents.AddRange(cacheContent);
+      request.SystemInstruction ??= CreateSystemPrompt();
+    }
+
+    var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CHAT), request, cancellationToken);
 
     if (!response.IsSuccessStatusCode)
     {
@@ -73,10 +113,65 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
 
     var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
 
-    var responseContent = chatResponse?.Choices.FirstOrDefault()?.Message.Content;
-    var replacment = JsonSerializer.Deserialize<Replacement>(responseContent, JsonSerializerOptions.Web);
+    var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
+    var replacements = JsonSerializer.Deserialize<List<Replacement>>(responseContent, JsonSerializerOptions.Web);
 
-    return new Response(chatResponse?.Choices.FirstOrDefault()?.Message.Content ?? string.Empty, replacment);
+    await reportingRepository.EndRequest(requestReference.Id, chatResponse.UsageMetadata.TotalTokenCount, chatResponse.UsageMetadata.CachedContentTokenCount, chatResponse.UsageMetadata.PromptTokenCount,
+                                         chatResponse.UsageMetadata.CandidatesTokenCount + chatResponse.UsageMetadata.ThoughtsTokenCount, cancellationToken);
+
+    return new Response(responseContent, replacements);
+  }
+
+  private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
+  {
+    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CacheCreation, token: cancellationToken);
+    UsageMetadata? metadata = null;
+    try
+    {
+      var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CACHE), cachedContent, cancellationToken);
+      if (!response.IsSuccessStatusCode)
+      {
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+          throw new Exception($"Failed to create cache in Gemini ({response.ReasonPhrase}): {await response.Content.ReadAsStringAsync(cancellationToken)}");
+        }
+
+        //Assume, that there is just not enough content to cache, so we just return null
+        logger.LogWarning("Failed to create cache in Gemini, assuming that the cached content was too small. Cached content will be added to individual requests: {ReasonPhrase} - {Content}", response.ReasonPhrase, await response.Content.ReadAsStringAsync(cancellationToken));
+        return null;
+      }
+
+      var cachedContentResponse = await response.Content.ReadFromJsonAsync<CachedContentResponse>(cancellationToken);
+      metadata = cachedContentResponse?.UsageMetadata;
+      return cachedContentResponse?.Name;
+    }
+    finally
+    {
+      await reportingRepository.EndRequest(requestReference.Id, metadata?.TotalTokenCount ?? 0, token: cancellationToken);
+    }
+  }
+
+  private string CreateUrl(string relativeUrl)
+  {
+    return relativeUrl.Replace(PLACEHOLDER_MODEL_NAME, configuration.Value.Model.GetModelName()).TrimEnd('/') + $"?key={configuration.Value.Token}";
+  }
+
+  private static Content CreateSystemPrompt()
+  {
+    return new Content([
+      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed.")
+    ]);
+  }
+
+  private async Task<List<Content>> CreateCacheContent()
+  {
+    var files = await sourceCodeConnector.GetAllFiles(cancellationToken: CancellationToken.None);
+
+    //TODO add file path to to the content, so that the AI can give this value back after fixing the issue
+    var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", file.FileContent))).Cast<Part>().ToList();
+
+    var content = new Content(parts);
+    return [content];
   }
 
   #endregion

@@ -15,6 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.4" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.4" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4" />
@@ -27,6 +31,8 @@
     <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Sonarqube\AutoIssueResolver.CodeAnalysisConnector.Sonarqube.csproj" />
     <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj" />
     <ProjectReference Include="..\AutoIssueResolver.GitConnector\AutoIssueResolver.GitConnector.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.Persistence.Sqlite\AutoIssueResolver.Persistence.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

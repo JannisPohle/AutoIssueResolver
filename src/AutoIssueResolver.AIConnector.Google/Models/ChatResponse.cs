@@ -2,8 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace AutoIssueResolver.AIConnector.Google.Models;
 
-public record ChatResponse(List<Choice> Choices);
+internal record ChatResponse(List<Candidate> Candidates, UsageMetadata UsageMetadata);
 
-public record Choice(Message Message);
+internal record Candidate(ResponseContent Content);
 
-public record Message(string Role, string Content);
+internal record ResponseContent(List<TextPart> Parts);

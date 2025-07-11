@@ -1,0 +1,6 @@
+using AutoIssueResolver.Persistence.EntityConfiguration;
+
+namespace AutoIssueResolver.Persistence.Sqlite.EntityConfiguration;
+
+public class EfRequestConfigurationSqlite: EfRequestConfiguration
+{ }

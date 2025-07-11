@@ -1,5 +1,6 @@
 ﻿FROM mcr.microsoft.com/dotnet/runtime:9.0 AS base
-USER $APP_UID
+# TODO figure out how to use the $APP_UID for the user, but still be able to read/write to the sqlite database file
+USER 1000
 WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build

@@ -18,9 +18,6 @@ using Microsoft.Extensions.Options;
 namespace AutoIssueResolver.AIConnector.Google;
 
 //TODO create a base class for AI Connectors (e.g. containing the system prompt, the response schema, ...)
-//TODO add reporting info to the database; check how we can do this mostly in the base class
-//TODO add logging
-//TODO Setup caching of file contents (only works, if the total file contents are larger than 4000 tokens). Specify json schema for cached files (probably just file name and content) --> See bruno collection for examples
 
 /// <summary>
 ///   Implements the <see cref="IAIConnector" /> interface for Google Gemini models.
@@ -49,17 +46,19 @@ public class GeminiConnector(
   {
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))
     {
-      // Cache already exists, no need to create it again
+      logger.LogDebug("Cache already exists with name: {CacheName}", metadata.CacheName);
       return;
     }
 
     try
     {
+      logger.LogInformation("Setting up Gemini cache...");
       var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
 
       var cacheName = await CreateCache(cache, cancellationToken);
 
       metadata.CacheName = cacheName;
+      logger.LogInformation("Gemini cache setup complete. CacheName: {CacheName}", cacheName);
     }
     catch (Exception e)
     {
@@ -70,6 +69,7 @@ public class GeminiConnector(
   /// <inheritdoc />
   public async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
   {
+    logger.LogDebug("Checking if GeminiConnector can handle model: {Model}", model);
     if (AIModels.GeminiFlashLite == model)
     {
       return true;
@@ -81,66 +81,91 @@ public class GeminiConnector(
   /// <inheritdoc />
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
+    logger.LogInformation("Getting response from Gemini for prompt...");
     if (!await CanHandleModel(configuration.Value.Model, cancellationToken))
     {
+      logger.LogError("The model {Model} is not supported by this connector.", configuration.Value.Model);
       throw new InvalidOperationException("The model is not supported by this connector.");
     }
 
     var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CodeGeneration, token: cancellationToken);
 
-    var jsonSchema = """
-                     {
-                       "title": "Replacements",
-                       "description": "Contains a list of replacements that should be done in the code to fix the issue.",
-                       "type": "array",
-                        "items": {
-                          "type": "object",
-                          "description": "Replacement for a specific file, that should be applied to fix an issue.",
-                          "properties": {
-                            "newCode": {
-                              "type": "string",
-                              "description": "The updated code that should replace the old code to fix the issue. Should contain the complete code for the file that should be changed"
+    UsageMetadata usageMetadata = null;
+    try
+    {
+      logger.LogDebug("Preparing JSON schema for Gemini request.");
+      var jsonSchema = """
+                       {
+                         "title": "Replacements",
+                         "description": "Contains a list of replacements that should be done in the code to fix the issue.",
+                         "type": "array",
+                          "items": {
+                            "type": "object",
+                            "description": "Replacement for a specific file, that should be applied to fix an issue.",
+                            "properties": {
+                              "newCode": {
+                                "type": "string",
+                                "description": "The updated code that should replace the old code to fix the issue. Should contain the complete code for the file that should be changed"
+                              },
+                              "filePath": {
+                                "type": "string",
+                                "description": "The path of the file that should be changed (relative to the repository root). This should be the same path as provided in the source code files."
+                              }
                             },
-                            "fileName": {
-                              "type": "string",
-                              "description": "The name of the file that should be changed"
-                            }
-                          },
-                          "required": ["newCode", "fileName"]
+                            "required": ["newCode", "filePath"]
+                         }
                        }
-                     }
-                     """.ReplaceLineEndings();
+                       """.ReplaceLineEndings();
 
-    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
+      var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
+      await AddCachedContent(request);
+
+      logger.LogDebug("Sending request to Gemini API: {Url}", CreateUrl(API_PATH_CHAT));
+      var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CHAT), request, cancellationToken);
+
+      if (!response.IsSuccessStatusCode)
+      {
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogError("Failed to get response from Gemini ({ReasonPhrase}): {Content}", response.ReasonPhrase, errorContent);
+        throw new Exception($"Failed to get response from Gemini ({response.ReasonPhrase}): {errorContent}");
+      }
+
+      logger.LogDebug("Reading response from Gemini API.");
+      var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
+      usageMetadata = chatResponse?.UsageMetadata;
+
+      var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
+      logger.LogTrace("Gemini raw response content: {ResponseContent}", responseContent);
+
+      var replacements = JsonSerializer.Deserialize<List<Replacement>>(responseContent, JsonSerializerOptions.Web);
+
+      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements.", replacements?.Count ?? 0);
+
+      return new Response(responseContent, replacements);
+    }
+    finally
+    {
+      logger.LogDebug("Ending reporting request for Gemini response.");
+      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount, usageMetadata?.PromptTokenCount,
+                                           usageMetadata?.CandidatesTokenCount + usageMetadata?.ThoughtsTokenCount, cancellationToken);
+    }
+  }
+
+  private async Task AddCachedContent(ChatRequest request)
+  {
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))
     {
+      logger.LogDebug("Adding cached content reference to Gemini request: {CacheName}", metadata.CacheName);
       request.CachedContent = metadata.CacheName;
     }
     else
     {
-      // If no cache is available, we assume that the content is too small to be cached, so we send all the conent in the request
+      logger.LogDebug("No cache available, adding full cache content to Gemini request.");
       var cacheContent = await CreateCacheContent();
       request.Contents.AddRange(cacheContent);
       request.SystemInstruction ??= CreateSystemPrompt();
     }
-
-    var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CHAT), request, cancellationToken);
-
-    if (!response.IsSuccessStatusCode)
-    {
-      throw new Exception($"Failed to get response from Gemini ({response.ReasonPhrase}): {await response.Content.ReadAsStringAsync(cancellationToken)}");
-    }
-
-    var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
-
-    var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
-    var replacements = JsonSerializer.Deserialize<List<Replacement>>(responseContent, JsonSerializerOptions.Web);
-
-    await reportingRepository.EndRequest(requestReference.Id, chatResponse.UsageMetadata.TotalTokenCount, chatResponse.UsageMetadata.CachedContentTokenCount, chatResponse.UsageMetadata.PromptTokenCount,
-                                         chatResponse.UsageMetadata.CandidatesTokenCount + chatResponse.UsageMetadata.ThoughtsTokenCount, cancellationToken);
-
-    return new Response(responseContent, replacements);
   }
 
   private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
@@ -150,56 +175,66 @@ public class GeminiConnector(
 
     try
     {
+      logger.LogDebug("Sending cache creation request to Gemini API: {Url}", CreateUrl(API_PATH_CACHE));
       var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CACHE), cachedContent, cancellationToken);
 
       if (!response.IsSuccessStatusCode)
       {
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
         if (response.StatusCode != HttpStatusCode.BadRequest)
         {
-          logger.LogWarning("Failed to create cache in Gemini: {ReasonPhrase} - {Content}. Cached content will be added to the individual requests", response.ReasonPhrase, await response.Content.ReadAsStringAsync(cancellationToken));
+          logger.LogWarning("Failed to create cache in Gemini: {ReasonPhrase} - {Content}. Cached content will be added to the individual requests", response.ReasonPhrase, errorContent);
 
           return null;
         }
 
         //Assume, that there is just not enough content to cache, so we just return null
         logger.LogWarning("Failed to create cache in Gemini, assuming that the cached content was too small. Cached content will be added to individual requests: {ReasonPhrase} - {Content}", response.ReasonPhrase,
-                          await response.Content.ReadAsStringAsync(cancellationToken));
+                          errorContent);
 
         return null;
       }
 
+      logger.LogDebug("Reading cache creation response from Gemini API.");
       var cachedContentResponse = await response.Content.ReadFromJsonAsync<CachedContentResponse>(cancellationToken);
       usageMetadata = cachedContentResponse?.UsageMetadata;
+
+      logger.LogInformation("Cache created in Gemini: {CacheName}", cachedContentResponse?.Name);
 
       return cachedContentResponse?.Name;
     }
     finally
     {
+      logger.LogDebug("Ending reporting request for Gemini cache creation.");
       await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, token: cancellationToken);
     }
   }
 
   private string CreateUrl(string relativeUrl)
   {
-    return relativeUrl.Replace(PLACEHOLDER_MODEL_NAME, configuration.Value.Model.GetModelName()).TrimEnd('/') + $"?key={configuration.Value.Token}";
+    var url = relativeUrl.Replace(PLACEHOLDER_MODEL_NAME, configuration.Value.Model.GetModelName()).TrimEnd('/') + $"?key={configuration.Value.Token}";
+    logger.LogTrace("Constructed Gemini API URL: {Url}", url);
+    return url;
   }
 
   private static Content CreateSystemPrompt()
   {
+    // This is static, so no logging needed here.
     return new Content([
-      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed."),
+      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed. Use the provided file paths in the responses to identify the files."),
     ]);
   }
 
   private async Task<List<Content>> CreateCacheContent()
   {
+    logger.LogDebug("Fetching all source files for Gemini cache content.");
     var files = await sourceCodeConnector.GetAllFiles(cancellationToken: CancellationToken.None);
 
-    //TODO add file path to to the content, so that the AI can give this value back after fixing the issue
-    var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", file.FileContent))).Cast<Part>().ToList();
+    var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", JsonSerializer.Serialize(file, JsonSerializerOptions.Web)))).Cast<Part>().ToList();
 
     var content = new Content(parts);
 
+    logger.LogDebug("Created Gemini cache content with {FileCount} files.", files.Count);
     return [content,];
   }
 

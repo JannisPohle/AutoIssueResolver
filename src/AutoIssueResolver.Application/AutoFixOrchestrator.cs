@@ -17,10 +17,19 @@ using Microsoft.Extensions.Options;
 namespace AutoIssueResolver.Application;
 
 /// <summary>
-/// Orchestrates the auto-fix process by integrating AI, code analysis, and source control.
+///   Orchestrates the auto-fix process by integrating AI, code analysis, and source control.
 /// </summary>
-public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceScopeFactory scopeFactory, IOptions<AiAgentConfiguration> aiConfiguration, IOptions<CodeAnalysisConfiguration> codeAnalysisConfiguration, IOptions<SourceCodeConfiguration> gitConfig, IHostApplicationLifetime hostApplicationLifetime, IRunMetadata metadata): BackgroundService
+public class AutoFixOrchestrator(
+  ILogger<AutoFixOrchestrator> logger,
+  IServiceScopeFactory scopeFactory,
+  IOptions<AiAgentConfiguration> aiConfiguration,
+  IOptions<CodeAnalysisConfiguration> codeAnalysisConfiguration,
+  IOptions<SourceCodeConfiguration> gitConfig,
+  IHostApplicationLifetime hostApplicationLifetime,
+  IRunMetadata metadata): BackgroundService
 {
+  #region Methods
+
   /// <inheritdoc />
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
@@ -35,7 +44,6 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
 
     try
     {
-
       var codeAnalysisConnector = FindCodeAnalysisConnector(scope);
       var aiConnector = FindAIConnector(scope);
       var git = scope.ServiceProvider.GetRequiredService<ISourceCodeConnector>();
@@ -58,6 +66,7 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
         await git.CommitChanges(GetCommitMessage(issue, rule), stoppingToken);
         logger.LogInformation("AI Response retrieved successfully");
       }
+
       logger.LogInformation("All issues have been worked on, pushing changes to remote repository");
       await git.PushChanges(stoppingToken);
     }
@@ -78,20 +87,24 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
   private IAIConnector FindAIConnector(AsyncServiceScope scope)
   {
     var aiConnector = scope.ServiceProvider.GetKeyedService<IAIConnector>(aiConfiguration.Value.Model);
+
     if (aiConnector == null)
     {
       throw new InvalidOperationException($"No AI connector found for model {aiConfiguration.Value.Model}");
     }
+
     return aiConnector;
   }
-  
+
   private ICodeAnalysisConnector FindCodeAnalysisConnector(AsyncServiceScope scope)
   {
     var codeAnalysisConnector = scope.ServiceProvider.GetKeyedService<ICodeAnalysisConnector>(codeAnalysisConfiguration.Value.Type);
+
     if (codeAnalysisConnector == null)
     {
       throw new InvalidOperationException($"No Code Analysis connector found for model {codeAnalysisConfiguration.Value.Type}");
     }
+
     return codeAnalysisConnector;
   }
 
@@ -101,6 +114,7 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
     //TODO optimize prompt for caching (ensure variable content is placed at the end)
     //TODO move some general restrictions into the system prompt (e.g. "You are a code assistant. Your task is to fix issues in code based on static code analysis.", // "Please provide the full updated file contents that fix the issue.")
     var fileContent = await sourceCodeConnector.GetFileContent(issue.FilePath);
+
     return new Prompt($$"""
                         You are a code assistant. Your task is to fix issues in code based on static code analysis.
 
@@ -126,4 +140,6 @@ public class AutoFixOrchestrator(ILogger<AutoFixOrchestrator> logger, IServiceSc
   {
     return gitConfig.Value.CommitMessageTemplate.Replace("{{ID}}", rule.RuleId).Replace("{{TITLE}}", rule.Title).Replace("{{FILE_NAME}}", issue.FilePath);
   }
+
+  #endregion
 }

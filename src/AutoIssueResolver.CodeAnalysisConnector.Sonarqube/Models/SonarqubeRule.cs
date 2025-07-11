@@ -5,13 +5,13 @@ public record SonarqubeRuleResponse(
   int P,
   int Ps,
   List<SonarqubeRule> Rules,
-  Paging Paging
-);
+  Paging Paging);
 
 public record SonarqubeRule(
   string Key,
   string Repo,
   string Name,
+
   // DateTime CreatedAt,
   string HtmlDesc,
   string MdDesc,
@@ -35,13 +35,12 @@ public record SonarqubeRule(
   bool IsExternal,
   List<DescriptionSection> DescriptionSections,
   List<object> EducationPrinciples,
+
   // DateTimeOffset UpdatedAt,
   string CleanCodeAttribute,
   string CleanCodeAttributeCategory,
-  List<Impact> Impacts
-);
+  List<Impact> Impacts);
 
 public record DescriptionSection(
   string Key,
-  string Content
-);
+  string Content);

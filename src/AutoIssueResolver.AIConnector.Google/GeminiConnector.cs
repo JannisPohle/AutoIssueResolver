@@ -23,9 +23,15 @@ namespace AutoIssueResolver.AIConnector.Google;
 //TODO Setup caching of file contents (only works, if the total file contents are larger than 4000 tokens). Specify json schema for cached files (probably just file name and content) --> See bruno collection for examples
 
 /// <summary>
-/// Implements the <see cref="IAIConnector"/> interface for Google Gemini models.
+///   Implements the <see cref="IAIConnector" /> interface for Google Gemini models.
 /// </summary>
-public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IRunMetadata metadata, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository, ILogger<GeminiConnector> logger): IAIConnector
+public class GeminiConnector(
+  [FromKeyedServices("google")] HttpClient httpClient,
+  IOptions<AiAgentConfiguration> configuration,
+  IRunMetadata metadata,
+  ISourceCodeConnector sourceCodeConnector,
+  IReportingRepository reportingRepository,
+  ILogger<GeminiConnector> logger): IAIConnector
 {
   #region Static
 
@@ -47,7 +53,8 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
       return;
     }
 
-    var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");;
+    var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
+    ;
     var cacheName = await CreateCache(cache, cancellationToken);
 
     metadata.CacheName = cacheName;
@@ -97,12 +104,13 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
                      }
                      """.ReplaceLineEndings();
 
-    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText)])], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))
     {
       request.CachedContent = metadata.CacheName;
-    }else
+    }
+    else
     {
       // If no cache is available, we assume that the content is too small to be cached, so we send all the conent in the request
       var cacheContent = await CreateCacheContent();
@@ -132,9 +140,11 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
   {
     var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CacheCreation, token: cancellationToken);
     UsageMetadata? metadata = null;
+
     try
     {
       var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CACHE), cachedContent, cancellationToken);
+
       if (!response.IsSuccessStatusCode)
       {
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -143,12 +153,15 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
         }
 
         //Assume, that there is just not enough content to cache, so we just return null
-        logger.LogWarning("Failed to create cache in Gemini, assuming that the cached content was too small. Cached content will be added to individual requests: {ReasonPhrase} - {Content}", response.ReasonPhrase, await response.Content.ReadAsStringAsync(cancellationToken));
+        logger.LogWarning("Failed to create cache in Gemini, assuming that the cached content was too small. Cached content will be added to individual requests: {ReasonPhrase} - {Content}", response.ReasonPhrase,
+                          await response.Content.ReadAsStringAsync(cancellationToken));
+
         return null;
       }
 
       var cachedContentResponse = await response.Content.ReadFromJsonAsync<CachedContentResponse>(cancellationToken);
       metadata = cachedContentResponse?.UsageMetadata;
+
       return cachedContentResponse?.Name;
     }
     finally
@@ -165,7 +178,7 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
   private static Content CreateSystemPrompt()
   {
     return new Content([
-      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed.")
+      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed."),
     ]);
   }
 
@@ -177,7 +190,8 @@ public class GeminiConnector([FromKeyedServices("google")] HttpClient httpClient
     var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", file.FileContent))).Cast<Part>().ToList();
 
     var content = new Content(parts);
-    return [content];
+
+    return [content,];
   }
 
   #endregion

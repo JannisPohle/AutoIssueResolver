@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AutoIssueResolver.Persistence.Repositories;
 
 /// <summary>
-/// Implements the data access layer for interacting with reporting data.
+///   Implements the data access layer for interacting with reporting data.
 /// </summary>
 public class ReportingRepository(ReportingContext reportingContext, IRunMetadata metadata): IReportingRepository
 {
@@ -83,7 +83,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
 
   private async Task<EfApplicationRun> FindCurrentApplicationRun(CancellationToken token)
   {
-    var applicationRun = await reportingContext.ApplicationRuns.FirstOrDefaultAsync(ar => ar.Id == metadata.CorrelationId, cancellationToken: token);
+    var applicationRun = await reportingContext.ApplicationRuns.FirstOrDefaultAsync(ar => ar.Id == metadata.CorrelationId, token);
 
     if (applicationRun == null)
     {

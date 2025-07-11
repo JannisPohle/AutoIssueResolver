@@ -5,14 +5,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace AutoIssueResolver.Persistence.EntityConfiguration;
 
 /// <summary>
-/// Base configuration for EfApplicationRun entity.
+///   Base configuration for EfApplicationRun entity.
 /// </summary>
 public abstract class EfApplicationRunConfiguration: IEntityTypeConfiguration<EfApplicationRun>
 {
   #region Methods
 
   /// <summary>
-  /// Configures the EfApplicationRun entity.
+  ///   Configures the EfApplicationRun entity.
   /// </summary>
   public void Configure(EntityTypeBuilder<EfApplicationRun> builder)
   {

@@ -130,6 +130,7 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
     {
       var relativePath = Path.GetRelativePath(LocalPath, filePath);
+
       files.Add(new SourceFile
       {
         FilePath = relativePath,

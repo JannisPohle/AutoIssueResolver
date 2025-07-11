@@ -7,8 +7,7 @@ public record SonarqubeIssueResponse(
   Paging Paging,
   int EffortTotal,
   List<SonarqubeIssue> Issues,
-  List<Component> Components
-);
+  List<Component> Components);
 
 public record SonarqubeIssue(
   string Key,
@@ -26,6 +25,7 @@ public record SonarqubeIssue(
   string Debt,
   string Author,
   List<string> Tags,
+
   // DateTimeOffset CreationDate,
   // DateTimeOffset UpdateDate,
   string Type,
@@ -37,26 +37,21 @@ public record SonarqubeIssue(
   string CleanCodeAttributeCategory,
   List<Impact> Impacts,
   string IssueStatus,
-  bool PrioritizedRule
-);
+  bool PrioritizedRule);
 
 public record TextRange(
   int StartLine,
   int EndLine,
   int StartOffset,
-  int EndOffset
-);
+  int EndOffset);
 
-public record Flow(
-  List<Location> Locations
-);
+public record Flow(List<Location> Locations);
 
 public record Location(
   string Component,
   TextRange TextRange,
   string Msg,
-  List<object> MsgFormattings
-);
+  List<object> MsgFormattings);
 
 public record Component(
   string Key,
@@ -64,5 +59,4 @@ public record Component(
   string Qualifier,
   string Name,
   string LongName,
-  string? Path
-);
+  string? Path);

@@ -6,9 +6,10 @@ namespace AutoIssueResolver.Persistence.Sqlite;
 
 public static class Extensions
 {
-  public static IServiceCollection AddSqlitePersistence(
-    this IServiceCollection services,
-    DatabaseConfiguration? configuration)
+  #region Methods
+
+  public static IServiceCollection AddSqlitePersistence(this IServiceCollection services,
+                                                        DatabaseConfiguration? configuration)
   {
     ArgumentNullException.ThrowIfNull(configuration);
 
@@ -22,4 +23,6 @@ public static class Extensions
 
     return services;
   }
+
+  #endregion
 }

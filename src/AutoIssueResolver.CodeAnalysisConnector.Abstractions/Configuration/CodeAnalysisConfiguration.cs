@@ -4,6 +4,11 @@ namespace AutoIssueResolver.CodeAnalysisConnector.Abstractions.Configuration;
 
 public record CodeAnalysisConfiguration
 {
+  #region Properties
+
   public CodeAnalysisTypes Type { get; set; } = CodeAnalysisTypes.None;
+
   public string? ProjectKey { get; set; }
+
+  #endregion
 }

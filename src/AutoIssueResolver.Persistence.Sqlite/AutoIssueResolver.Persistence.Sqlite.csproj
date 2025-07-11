@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AutoIssueResolver.Persistence\AutoIssueResolver.Persistence.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.Persistence\AutoIssueResolver.Persistence.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.5"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.5"/>
   </ItemGroup>
 
 </Project>

@@ -3,10 +3,12 @@ using AutoIssueResolver.Application.Abstractions;
 namespace AutoIssueResolver.Application;
 
 /// <summary>
-/// Contains metadata about the current run.
+///   Contains metadata about the current run.
 /// </summary>
 public class RunMetadata: IRunMetadata
 {
+  #region Properties
+
   /// <inheritdoc />
   public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
 
@@ -15,4 +17,6 @@ public class RunMetadata: IRunMetadata
 
   /// <inheritdoc />
   public string? CacheName { get; set; } = string.Empty;
+
+  #endregion
 }

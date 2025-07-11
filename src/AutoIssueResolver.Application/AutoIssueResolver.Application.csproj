@@ -22,11 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Abstractions\AutoIssueResolver.AIConnector.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.Application.Abstractions\AutoIssueResolver.Application.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Abstractions\AutoIssueResolver.AIConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.Application.Abstractions\AutoIssueResolver.Application.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj"/>
   </ItemGroup>
 
 </Project>

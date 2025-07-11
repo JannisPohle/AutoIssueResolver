@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.Http.Json;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models;
@@ -10,12 +9,19 @@ namespace AutoIssueResolver.CodeAnalysisConnector.Sonarqube;
 
 public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient httpClient): ICodeAnalysisConnector
 {
+  #region Static
+
   private const string API_PATH_ISSUES = "api/issues/search";
   private const string API_PATH_RULES = "api/rules/search";
+
+  #endregion
+
+  #region Methods
 
   public async Task<List<Issue>> GetIssues(Project project, CancellationToken cancellationToken = default)
   {
     var response = await httpClient.GetAsync($"{API_PATH_ISSUES}?components={project.ProjectName}&languages={project.Language}", cancellationToken);
+
     if (!response.IsSuccessStatusCode)
     {
       throw new Exception($"Failed to get issues from Sonarqube: {response.ReasonPhrase}");
@@ -34,6 +40,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
   public async Task<Rule> GetRule(RuleIdentifier identifier, CancellationToken cancellationToken = default)
   {
     var response = await httpClient.GetAsync($"{API_PATH_RULES}?rule_key={identifier.RuleId}", cancellationToken);
+
     if (!response.IsSuccessStatusCode)
     {
       throw new Exception($"Failed to get rule from Sonarqube: {response.ReasonPhrase}");
@@ -47,6 +54,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
     }
 
     var rule = rules.Rules.FirstOrDefault(r => r.Key == identifier.RuleId);
+
     if (rule == null)
     {
       throw new Exception($"Rule with ID {identifier.RuleId} not found in Sonarqube");
@@ -54,4 +62,6 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     return new Rule(rule.Key, rule.Name, rule.HtmlDesc);
   }
+
+  #endregion
 }

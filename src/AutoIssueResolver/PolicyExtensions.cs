@@ -64,6 +64,7 @@ internal static class PolicyExtensions
     if (message.Result.Headers.RetryAfter!.Delta.HasValue)
     {
       retryAfterDelta = message.Result.Headers.RetryAfter.Delta.Value;
+
       return true;
     }
 
@@ -79,13 +80,14 @@ internal static class PolicyExtensions
     {
       // Wait until the specified date
       retryAfterDelta = date - DateTimeOffset.UtcNow;
+
       return true;
     }
 
     // If date is in the past, do not wait
     retryAfterDelta = TimeSpan.Zero;
-    return true;
 
+    return true;
   }
 
   /// <summary>

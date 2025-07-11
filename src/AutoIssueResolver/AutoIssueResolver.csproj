@@ -19,22 +19,22 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.4" />
-    <PackageReference Include="Polly.Contrib.WaitAndRetry" Version="1.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.4"/>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.4"/>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4"/>
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.4"/>
+    <PackageReference Include="Polly.Contrib.WaitAndRetry" Version="1.1.1"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Google\AutoIssueResolver.AIConnector.Google.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.Application\AutoIssueResolver.Application.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Sonarqube\AutoIssueResolver.CodeAnalysisConnector.Sonarqube.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.GitConnector\AutoIssueResolver.GitConnector.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj" />
-    <ProjectReference Include="..\AutoIssueResolver.Persistence.Sqlite\AutoIssueResolver.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Google\AutoIssueResolver.AIConnector.Google.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.Application\AutoIssueResolver.Application.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Abstractions\AutoIssueResolver.CodeAnalysisConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.CodeAnalysisConnector.Sonarqube\AutoIssueResolver.CodeAnalysisConnector.Sonarqube.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.GitConnector\AutoIssueResolver.GitConnector.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.Persistence.Sqlite\AutoIssueResolver.Persistence.Sqlite.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

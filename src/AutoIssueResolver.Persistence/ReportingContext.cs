@@ -4,19 +4,19 @@ using Microsoft.EntityFrameworkCore;
 namespace AutoIssueResolver.Persistence;
 
 /// <summary>
-/// Base DbContext for reporting application runs and requests.
+///   Base DbContext for reporting application runs and requests.
 /// </summary>
 public abstract class ReportingContext: DbContext
 {
   #region Properties
 
   /// <summary>
-  /// Application runs tracked in the context.
+  ///   Application runs tracked in the context.
   /// </summary>
   public DbSet<EfApplicationRun> ApplicationRuns { get; set; }
 
   /// <summary>
-  /// Requests tracked in the context.
+  ///   Requests tracked in the context.
   /// </summary>
   public DbSet<EfRequest> Requests { get; set; }
 

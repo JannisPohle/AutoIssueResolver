@@ -25,10 +25,12 @@ var builder = Host.CreateApplicationBuilder(args);
 
 // handle configuration
 builder.Configuration.AddJsonFile("appSettings.json");
+
 if (builder.Environment.IsDevelopment())
 {
-  builder.Configuration.AddJsonFile("appSettings.Development.json", optional: true);
+  builder.Configuration.AddJsonFile("appSettings.Development.json", true);
 }
+
 builder.Configuration.AddEnvironmentVariables("AUTO_ISSUE_RESOLVER_");
 
 var dbConfigurationSection = builder.Configuration.GetSection("Db");
@@ -48,7 +50,8 @@ builder.Services.AddHttpClient("google", configureClient =>
        {
          configureClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
          configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
-       }).AddAsKeyed()
+       })
+       .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<GeminiConnector>(serviceProvider));
 
 builder.Services.AddHttpClient("sonarqube", configureClient =>
@@ -56,9 +59,9 @@ builder.Services.AddHttpClient("sonarqube", configureClient =>
          configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
          configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
          configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("CodeAnalysis:token"));
-       }).AddAsKeyed()
+       })
+       .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<SonarqubeConnector>(serviceProvider));
-
 
 // Register the services
 builder.Services

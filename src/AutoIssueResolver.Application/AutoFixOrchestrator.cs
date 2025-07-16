@@ -54,7 +54,7 @@ public class AutoFixOrchestrator(
     logger.LogDebug("Required services prepared");
 
     await _reportingRepository!.InitializeApplicationRun(stoppingToken);
-    logger.LogInformation("Application run initialized");
+    logger.LogInformation("Application run initialized: {CorrelationId}", metadata.CorrelationId);
 
     try
     {
@@ -112,7 +112,7 @@ public class AutoFixOrchestrator(
   /// <inheritdoc />
   public override async Task StopAsync(CancellationToken cancellationToken)
   {
-    logger.LogInformation("Shutting down TestHostedService");
+    logger.LogInformation("Shutting down AutoFixOrchestrator");
     await base.StopAsync(cancellationToken);
   }
 
@@ -167,7 +167,6 @@ public class AutoFixOrchestrator(
   private async Task<Prompt> CreatePrompt(Issue issue, Rule rule)
   {
     logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);
-    var fileContent = await _git.GetFileContent(issue.FilePath);
 
     logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
     return new Prompt($$"""
@@ -175,14 +174,9 @@ public class AutoFixOrchestrator(
 
                         **Analysis Rule Key**: {{rule.RuleId}}
                         **Rule Title**: {{rule.Title}}
-                        **Issue Description**: {{rule.Description}}
+                        **File Path**: {{issue.FilePath}}
                         **Affected Lines**: {{issue.Range.StartLine}}-{{issue.Range.EndLine}}
-
-                        Below is the content of the affected file:
-
-                        ```
-                        {{fileContent}}
-                        ```
+                        **Issue Description**: {{rule.Description}}
                         """);
   }
 
@@ -193,13 +187,13 @@ public class AutoFixOrchestrator(
       try
       {
         //TODO maybe improve, how to deal with files not found by the name provided from the AI
-        logger.LogInformation("Updating file: {FileName}", replacement.FileName);
-        await _git.UpdateFileContent(replacement.FileName, replacement.NewCode);
-        logger.LogDebug("File {FileName} updated", replacement.FileName);
+        logger.LogInformation("Updating file: {FileName}", replacement.FilePath);
+        await _git.UpdateFileContent(replacement.FilePath, replacement.NewCode);
+        logger.LogDebug("File {FileName} updated", replacement.FilePath);
       }
       catch (Exception e)
       {
-        logger.LogWarning(e, "Failed to update file {FileName}", replacement.FileName);
+        logger.LogWarning(e, "Failed to update file {FileName}", replacement.FilePath);
       }
     }
   }

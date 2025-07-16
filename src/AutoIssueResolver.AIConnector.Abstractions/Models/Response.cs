@@ -8,4 +8,4 @@ public record Response(string ResponseText, List<Replacement> CodeReplacement);
 /// <summary>
 ///   Represents a code replacement for a specific file.
 /// </summary>
-public record Replacement(string NewCode, string FileName);
+public record Replacement(string NewCode, string FilePath);

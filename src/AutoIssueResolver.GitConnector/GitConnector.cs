@@ -143,10 +143,22 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     logger.LogInformation("Getting all files with extension filter {ExtensionFilter}", extensionFilter);
     var files = new List<SourceFile>();
 
-    //TODO maybe exclude the test projects
+    //TODO maybe make exclusions configurable via the configuration
     foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
     {
+      if(filePath.Contains("bin") || filePath.Contains("obj"))
+      {
+        logger.LogDebug("Skipping file {FilePath} as it is in bin or obj directory", filePath);
+        continue; // Skip files in bin or obj directories
+      }
+
       var relativePath = Path.GetRelativePath(LocalPath, filePath);
+
+      if (relativePath.StartsWith('.') || relativePath.Contains("IntegrationTests") || relativePath.Contains("UnitTests"))
+      {
+        logger.LogDebug("Skipping file {FilePath} as it is a test file or in a hidden directory", relativePath);
+        continue;
+      }
 
       files.Add(new SourceFile
       {

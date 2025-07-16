@@ -1,7 +1,10 @@
+using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models;
 using AutoIssueResolver.CodeAnalysisConnector.Sonarqube.Models;
+using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TextRange = AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models.TextRange;
@@ -22,7 +25,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
   public async Task<List<Issue>> GetIssues(Project project, CancellationToken cancellationToken = default)
   {
     logger.LogInformation("Requesting issues for project {ProjectName} ({Language}) from Sonarqube", project.ProjectName, project.Language);
-    var response = await httpClient.GetAsync($"{API_PATH_ISSUES}?components={project.ProjectName}&languages={project.Language}", cancellationToken);
+    var response = await httpClient.GetAsync($"{API_PATH_ISSUES}?components={project.ProjectName}&languages={project.Language}&resolved=no", cancellationToken);
 
     if (!response.IsSuccessStatusCode)
     {
@@ -81,7 +84,57 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     logger.LogDebug("Retrieved rule {RuleId}: {RuleName}", rule.Key, rule.Name);
 
-    return new Rule(rule.Key, rule.Name, rule.HtmlDesc);
+    var description = GetDescription(rule);
+
+    return new Rule(rule.Key, rule.Name, description);
+  }
+
+  private string GetDescription(SonarqubeRule rule)
+  {
+    var sb = new StringBuilder();
+
+    if (!string.IsNullOrWhiteSpace(rule.MdDesc) && (string.IsNullOrWhiteSpace(rule.HtmlDesc) || (rule.HtmlDesc.Length < rule.MdDesc.Length)))
+    {
+      sb.Append(rule.MdDesc);
+    }
+    else if (!string.IsNullOrWhiteSpace(rule.HtmlDesc))
+    {
+      // Fallback to HTML description if Markdown is not available or shorter
+      sb.Append(RemoveHtmlTags(rule.HtmlDesc));
+    }
+
+    foreach (var section in rule.DescriptionSections ?? [])
+    {
+      var title = section.Key switch
+      {
+        "root_cause" => "Root Cause",
+        "how_to_fix" => "How to Fix",
+        "resources" => "Resources",
+        "introduction" => "Introduction",
+        _ => section.Key
+      };
+
+      if (!string.IsNullOrWhiteSpace(section.Content))
+      {
+        sb.AppendLine();
+        sb.AppendLine($"## {title}");
+        sb.AppendLine(RemoveHtmlTags(section.Content));
+      }
+    }
+
+    var description = sb.ToString();
+    logger.LogDebug("Constructed description for rule {RuleId}: {DescriptionLength} characters", rule.Key, description.Length);
+    logger.LogTrace("Full constructed description: {Description}", description);
+
+    return description;
+  }
+
+  private string RemoveHtmlTags(string input)
+  {
+    var htmlDoc = new HtmlDocument();
+    htmlDoc.LoadHtml(input);
+
+    return WebUtility.HtmlDecode(htmlDoc.DocumentNode.InnerText);
   }
 
   #endregion

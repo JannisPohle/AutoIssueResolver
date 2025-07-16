@@ -153,4 +153,9 @@ internal record CachedContentResponse(string Name, UsageMetadata UsageMetadata);
 /// <summary>
 ///   Metadata about token usage in a request.
 /// </summary>
-internal record UsageMetadata(int PromptTokenCount, int CachedContentTokenCount, int TotalTokenCount, int CandidatesTokenCount, int ThoughtsTokenCount);
+internal record UsageMetadata(int PromptTokenCount, int CachedContentTokenCount, int TotalTokenCount, int CandidatesTokenCount, int ThoughtsTokenCount)
+{
+  public int ActualUsedTokens => ActualRequestTokenCount + ActualResponseTokenCount;
+  public int ActualRequestTokenCount => PromptTokenCount - CachedContentTokenCount;
+  public int ActualResponseTokenCount => CandidatesTokenCount + ThoughtsTokenCount;
+};

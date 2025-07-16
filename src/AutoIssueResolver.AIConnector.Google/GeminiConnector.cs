@@ -109,7 +109,7 @@ public class GeminiConnector(
                               },
                               "filePath": {
                                 "type": "string",
-                                "description": "The path of the file that should be changed (relative to the repository root). This should be the same path as provided in the source code files."
+                                "description": "The path of the file that should be changed (relative to the repository root). This should be the same path as provided in the source code files in the cache."
                               }
                             },
                             "required": ["newCode", "filePath"]
@@ -138,17 +138,18 @@ public class GeminiConnector(
       var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
       logger.LogTrace("Gemini raw response content: {ResponseContent}", responseContent);
 
+      //TODO handle invalid response content
       var replacements = JsonSerializer.Deserialize<List<Replacement>>(responseContent, JsonSerializerOptions.Web);
 
-      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements.", replacements?.Count ?? 0);
+      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .", replacements?.Count ?? 0, usageMetadata?.ActualUsedTokens, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount, usageMetadata?.ActualResponseTokenCount);
 
       return new Response(responseContent, replacements);
     }
     finally
     {
       logger.LogDebug("Ending reporting request for Gemini response.");
-      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount, usageMetadata?.PromptTokenCount,
-                                           usageMetadata?.CandidatesTokenCount + usageMetadata?.ThoughtsTokenCount, cancellationToken);
+      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount,
+                                           usageMetadata?.ActualResponseTokenCount, cancellationToken);
     }
   }
 
@@ -221,7 +222,10 @@ public class GeminiConnector(
   {
     // This is static, so no logging needed here.
     return new Content([
-      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. The response should contain the complete code for the files that should be changed. Use the provided file paths in the responses to identify the files."),
+      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. "
+                   + "The response should contain the complete code for the files that should be changed. "
+                   + "Use the provided file paths in the responses to identify the files. "
+                   + "Do not change anything else in the code, just fix the issues that are described in the prompt. Do not add any comments, explanations or unnecessary whitespace to the code."),
     ]);
   }
 

@@ -48,6 +48,10 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
       ApplicationRun = applicationRun,
       Retries = 0, // Initialize retries to 0
       CodeSmellReference = codeSmellReference,
+      TotalTokensUsed = 0,
+      CachedTokens = 0,
+      PromptTokens = 0,
+      ResponseTokens = 0,
     };
 
     applicationRun.Requests ??= [];
@@ -59,24 +63,29 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
   }
 
   /// <inheritdoc />
-  public async Task IncrementRequestRetries(string requestId, CancellationToken token = default)
+  public async Task IncrementRequestRetries(string requestId, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default)
   {
     var request = await FindRequest(requestId, token);
+
+    request.TotalTokensUsed += totalTokensUsed;
+    request.CachedTokens += cachedTokens;
+    request.PromptTokens += promptTokens;
+    request.ResponseTokens += responseTokens;
 
     request.Retries++;
     await reportingContext.SaveChangesAsync(token);
   }
 
   /// <inheritdoc />
-  public async Task EndRequest(string requestId, int totalTokensUsed, int? cachedTokens = null, int? promptTokens = null, int? responseTokens = null, CancellationToken token = default)
+  public async Task EndRequest(string requestId, int totalTokensUsed, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default)
   {
     var request = await FindRequest(requestId, token);
 
     request.EndTimeUtc = DateTime.UtcNow;
-    request.TotalTokensUsed = totalTokensUsed;
-    request.CachedTokens = cachedTokens;
-    request.PromptTokens = promptTokens;
-    request.ResponseTokens = responseTokens;
+    request.TotalTokensUsed += totalTokensUsed;
+    request.CachedTokens += cachedTokens;
+    request.PromptTokens += promptTokens;
+    request.ResponseTokens += responseTokens;
 
     await reportingContext.SaveChangesAsync(token);
   }

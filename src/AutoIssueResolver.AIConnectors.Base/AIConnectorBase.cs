@@ -22,6 +22,8 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
                                          + "Use the provided file paths in the responses to identify the files. "
                                          + "Do not change anything else in the code, just fix the issues that are described in the prompt. Do not add any comments, explanations or unnecessary whitespace to the code.";
 
+  protected const int MAX_OUTPUT_TOKENS = 2500;
+
   private const string ADDITIONAL_PROPERTIES = "\"additionalProperties\": false,";
 
   private const string RESPONSE_SCHEMA = """
@@ -71,12 +73,15 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
         var retryReportingRepository = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<IReportingRepository?>("repository"), null);
         var requestReference = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<EfRequest?>("request"), null);
 
-        retryLogger?.LogInformation(arguments.Outcome.Exception, "(Retry {RetryCount}). Request to the AI failed: '{ErrorMessage}'. Retrying request to AI API after {WaitTime}",
-                                    arguments.AttemptNumber, arguments.Outcome.Exception?.Message, arguments.Duration);
+        var usageMetadata = (arguments.Outcome.Exception as UnsuccessfulResultException)?.UsageMetadata;
+
+        retryLogger?.LogInformation(arguments.Outcome.Exception, "(Retry {RetryCount}). Request to the AI failed: '{ErrorMessage}'. Retrying request to AI API after {WaitTime}. Usage Statistics: {UsageMetadata}",
+                                    arguments.AttemptNumber, arguments.Outcome.Exception?.Message, arguments.Duration, usageMetadata);
 
         if (retryReportingRepository != null && requestReference != null)
         {
-          await retryReportingRepository.IncrementRequestRetries(requestReference.Id);
+          await retryReportingRepository.IncrementRequestRetries(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
+                                                                 usageMetadata?.ActualResponseTokenCount ?? 0);
           retryLogger?.LogDebug("Incremented retry counter for request {RequestId}.", requestReference.Id);
         }
       },
@@ -119,6 +124,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     UsageMetadata? usageMetadata = null;
 
     var context = ResilienceContextPool.Shared.Get(cancellationToken);
+
     try
     {
       context.Properties.Set(new ResiliencePropertyKey<ILogger?>("logger"), logger);
@@ -130,13 +136,24 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
       return response;
     }
+    catch (UnsuccessfulResultException ex)
+    {
+      logger.LogInformation(ex, "Trying to get a response from the AI model failed on the last retry, request will be marked as failed.");
+      if (ex.UsageMetadata != null)
+      {
+        //TODO add status to the EfRequest and set to failed (adjust EndRequest method to also take the status; Ignore further requests when already set to finished)
+        await reportingRepository.IncrementRequestRetries(requestReference.Id, ex.UsageMetadata.TotalTokenCount, ex.UsageMetadata.CachedContentTokenCount, ex.UsageMetadata.ActualRequestTokenCount, ex.UsageMetadata.ActualResponseTokenCount, cancellationToken);
+      }
+
+      throw;
+    }
     finally
     {
       ResilienceContextPool.Shared.Return(context);
       logger.LogDebug("Ending reporting request for OpenAI response.");
 
-      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount,
-                                           usageMetadata?.ActualResponseTokenCount, cancellationToken);
+      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
+                                           usageMetadata?.ActualResponseTokenCount ?? 0, cancellationToken);
     }
   }
 
@@ -167,7 +184,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     catch (Exception e)
     {
       logger.LogError(e, "Failed to parse replacement response from API.");
-      throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true);
+      throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
     }
 
     logger.LogInformation("Received response from API with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",

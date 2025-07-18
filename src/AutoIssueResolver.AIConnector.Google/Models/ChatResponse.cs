@@ -11,7 +11,7 @@ internal record ChatResponse(List<Candidate> Candidates, UsageMetadata UsageMeta
 /// <summary>
 ///   Represents a candidate response.
 /// </summary>
-internal record Candidate(ResponseContent Content);
+internal record Candidate(ResponseContent Content, string FinishReason);
 
 /// <summary>
 ///   Content of a candidate response.

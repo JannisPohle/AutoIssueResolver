@@ -27,12 +27,12 @@ public interface IReportingRepository
   /// <summary>
   ///   Increments the retry count for a request.
   /// </summary>
-  Task IncrementRequestRetries(string requestId, CancellationToken token = default);
+  Task IncrementRequestRetries(string requestId, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default);
 
   /// <summary>
   ///   Marks the end of a request and records token usage.
   /// </summary>
-  Task EndRequest(string requestId, int totalTokensUsed, int? cachedTokens = null, int? promptTokens = null, int? responseTokens = null, CancellationToken token = default);
+  Task EndRequest(string requestId, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default);
 
   #endregion
 }

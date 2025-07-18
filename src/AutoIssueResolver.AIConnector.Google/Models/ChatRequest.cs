@@ -97,7 +97,7 @@ internal record Content(List<Part> Parts, string Role = "user");
 /// <summary>
 ///   Configuration for response generation.
 /// </summary>
-internal record GenerationConfiguration(string ResponseMimeType, object? ResponseSchema);
+internal record GenerationConfiguration(string ResponseMimeType, object? ResponseSchema, int? MaxOutputTokens);
 
 /// <summary>
 ///   Represents cached chat content for reuse.

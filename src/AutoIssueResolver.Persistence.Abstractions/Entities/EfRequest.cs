@@ -25,17 +25,17 @@ public class EfRequest
   /// <summary>
   ///   Number of cached tokens, if applicable.
   /// </summary>
-  public int? CachedTokens { get; set; }
+  public int CachedTokens { get; set; }
 
   /// <summary>
   ///   Number of prompt tokens, if applicable.
   /// </summary>
-  public int? PromptTokens { get; set; }
+  public int PromptTokens { get; set; }
 
   /// <summary>
   ///   Number of response tokens, if applicable.
   /// </summary>
-  public int? ResponseTokens { get; set; }
+  public int ResponseTokens { get; set; }
 
   /// <summary>
   ///   Start time in UTC.

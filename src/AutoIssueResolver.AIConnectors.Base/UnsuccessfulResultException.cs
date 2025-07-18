@@ -1,3 +1,5 @@
+using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
+
 namespace AutoIssueResolver.AIConnectors.Base;
 
 public class UnsuccessfulResultException: Exception
@@ -8,6 +10,11 @@ public class UnsuccessfulResultException: Exception
   /// Indicates whether the operation can be retried.
   /// </summary>
   public bool CanRetry { get; }
+
+  /// <summary>
+  /// The metadata about the usage of the AI model, if available.
+  /// </summary>
+  public UsageMetadata? UsageMetadata { get; init; }
 
   #endregion
 

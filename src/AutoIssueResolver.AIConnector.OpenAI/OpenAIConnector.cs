@@ -9,7 +9,6 @@ using AutoIssueResolver.AIConnector.OpenAI.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 using AutoIssueResolver.GitConnector.Abstractions;
-using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -33,8 +32,7 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   }
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    //TODO set max output tokens
-    var request = new Request(await PreparePromptText(prompt, cancellationToken), configuration.Value.Model.GetModelName(), SYSTEM_PROMPT, new TextOptions(new Format("response_schema", JsonNode.Parse(ResponseSchemaWithAdditionalProperties))));
+    var request = new Request(await PreparePromptText(prompt, cancellationToken), configuration.Value.Model.GetModelName(), SYSTEM_PROMPT, new TextOptions(new Format("response_schema", JsonNode.Parse(ResponseSchemaWithAdditionalProperties))), MAX_OUTPUT_TOKENS);
 
     return request;
   }
@@ -49,10 +47,27 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
     var chatResponse = await response.Content.ReadFromJsonAsync<ResponseRoot>(cancellationToken);
     var usageMetadata = new UsageMetadata(chatResponse?.Usage?.InputTokens ?? 0, chatResponse?.Usage?.InputTokensDetails?.CachedTokens ?? 0, chatResponse?.Usage?.TotalTokens ?? 0, chatResponse?.Usage?.OutputTokens ?? 0, chatResponse?.Usage?.OutputTokensDetails?.ReasoningTokens ?? 0);
 
-    //TODO handle unsuccessful response (based on the status in the response itself)
+    if (chatResponse == null)
+    {
+      logger.LogWarning("No response received from OpenAI API. Something seems to have gone wrong with the request.");
+      throw new UnsuccessfulResultException("No response received from OpenAI API", true) {  UsageMetadata = usageMetadata, };
+    }
 
-    var responseText = chatResponse?.Output?.FirstOrDefault(o => o.Role == "assistant")?.Content?.FirstOrDefault(c => c.Type == "output_text")?.Text ?? string.Empty;
-    return new AiResponse(responseText, usageMetadata);
+    if (!chatResponse.Status.Equals("completed", StringComparison.OrdinalIgnoreCase))
+    {
+      logger.LogWarning("OpenAI response finished with reason: {FinishReason}. Something seems to have gone wrong with the request.", chatResponse.Status);
+      throw new UnsuccessfulResultException($"OpenAI response finished with reason: {chatResponse.Status}", true) {  UsageMetadata = usageMetadata, };
+    }
+
+    var responseContent = chatResponse.Output?.FirstOrDefault(o => o.Role == "assistant")?.Content?.FirstOrDefault(c => c.Type == "output_text")?.Text ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(responseContent))
+    {
+      logger.LogWarning("OpenAI response content is empty. Something seems to have gone wrong with the request.");
+      throw new UnsuccessfulResultException("OpenAI response content is empty", true) {  UsageMetadata = usageMetadata, };
+    }
+
+    return new AiResponse(responseContent, usageMetadata);
   }
 
   private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)

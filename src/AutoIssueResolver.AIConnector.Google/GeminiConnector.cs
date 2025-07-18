@@ -80,9 +80,8 @@ public class GeminiConnector(
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    //TODO set max output tokens
     var jsonSchema = ResponseSchema;
-    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema), MAX_OUTPUT_TOKENS));
 
     await AddCachedContent(request);
 
@@ -96,11 +95,30 @@ public class GeminiConnector(
 
   protected override async Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken)
   {
-    //TODO handle unsuccessful response (based on the status in the response itself)
     var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
     var usageMetadata = chatResponse?.UsageMetadata;
 
-    var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
+    var candidate = chatResponse?.Candidates.FirstOrDefault();
+
+    if (candidate == null)
+    {
+      logger.LogWarning("No candidates found in Gemini response. Something seems to have gone wrong with the request.");
+      throw new UnsuccessfulResultException("No candidates found in Gemini response", true) {  UsageMetadata = usageMetadata, };
+    }
+
+    if (candidate.FinishReason != "STOP")
+    {
+      logger.LogWarning("Gemini response finished with reason: {FinishReason}. Something seems to have gone wrong with the request.", candidate.FinishReason);
+      throw new UnsuccessfulResultException($"Gemini response finished with reason: {candidate.FinishReason}", true) {  UsageMetadata = usageMetadata, };
+    }
+
+    var responseContent = candidate.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(responseContent))
+    {
+      logger.LogWarning("Gemini response content is empty. Something seems to have gone wrong with the request.");
+      throw new UnsuccessfulResultException("Gemini response content is empty", true) {  UsageMetadata = usageMetadata, };
+    }
 
     return new AiResponse(responseContent, usageMetadata ?? new UsageMetadata(0, 0, 0, 0, 0));
   }

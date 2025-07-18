@@ -1,3 +1,6 @@
+using AutoIssueResolver.AIConnector.Abstractions;
+using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
+
 namespace AutoIssueResolver.AIConnector.Google.Models;
 
 /// <summary>

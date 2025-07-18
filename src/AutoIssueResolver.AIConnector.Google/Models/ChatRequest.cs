@@ -1,7 +1,9 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
+using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 
 namespace AutoIssueResolver.AIConnector.Google.Models;
 
@@ -149,13 +151,3 @@ internal record CachedContent
 ///   Response for a cached content request.
 /// </summary>
 internal record CachedContentResponse(string Name, UsageMetadata UsageMetadata);
-
-/// <summary>
-///   Metadata about token usage in a request.
-/// </summary>
-internal record UsageMetadata(int PromptTokenCount, int CachedContentTokenCount, int TotalTokenCount, int CandidatesTokenCount, int ThoughtsTokenCount)
-{
-  public int ActualUsedTokens => ActualRequestTokenCount + ActualResponseTokenCount;
-  public int ActualRequestTokenCount => PromptTokenCount - CachedContentTokenCount;
-  public int ActualResponseTokenCount => CandidatesTokenCount + ThoughtsTokenCount;
-};

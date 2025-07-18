@@ -7,6 +7,8 @@ using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Google.Models;
+using AutoIssueResolver.AIConnectors.Base;
+using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 using AutoIssueResolver.Application.Abstractions;
 using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
@@ -17,8 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.AIConnector.Google;
 
-//TODO create a base class for AI Connectors (e.g. containing the system prompt, the response schema, ...)
-
 /// <summary>
 ///   Implements the <see cref="IAIConnector" /> interface for Google Gemini models.
 /// </summary>
@@ -28,7 +28,7 @@ public class GeminiConnector(
   IRunMetadata metadata,
   ISourceCodeConnector sourceCodeConnector,
   IReportingRepository reportingRepository,
-  ILogger<GeminiConnector> logger): IAIConnector
+  ILogger<GeminiConnector> logger): AIConnectorBase(logger), IAIConnector
 {
   #region Static
 
@@ -78,6 +78,7 @@ public class GeminiConnector(
     return false;
   }
 
+  //TODO set max output tokens
   /// <inheritdoc />
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
@@ -94,28 +95,7 @@ public class GeminiConnector(
     try
     {
       logger.LogDebug("Preparing JSON schema for Gemini request.");
-      var jsonSchema = """
-                       {
-                         "title": "Replacements",
-                         "description": "Contains a list of replacements that should be done in the code to fix the issue.",
-                         "type": "array",
-                          "items": {
-                            "type": "object",
-                            "description": "Replacement for a specific file, that should be applied to fix an issue.",
-                            "properties": {
-                              "newCode": {
-                                "type": "string",
-                                "description": "The updated code that should replace the old code to fix the issue. Should contain the complete code for the file that should be changed"
-                              },
-                              "filePath": {
-                                "type": "string",
-                                "description": "The path of the file that should be changed (relative to the repository root). This should be the same path as provided in the source code files in the cache."
-                              }
-                            },
-                            "required": ["newCode", "filePath"]
-                         }
-                       }
-                       """.ReplaceLineEndings();
+      var jsonSchema = ResponseSchema;
 
       var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
@@ -139,11 +119,11 @@ public class GeminiConnector(
       logger.LogTrace("Gemini raw response content: {ResponseContent}", responseContent);
 
       //TODO handle invalid response content
-      var replacements = JsonSerializer.Deserialize<List<Replacement>>(responseContent, JsonSerializerOptions.Web);
+      var replacements = JsonSerializer.Deserialize<ReplacementResponse>(responseContent, JsonSerializerOptions.Web);
 
-      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .", replacements?.Count ?? 0, usageMetadata?.ActualUsedTokens, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount, usageMetadata?.ActualResponseTokenCount);
+      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .", replacements?.Replacements.Count ?? 0, usageMetadata?.ActualUsedTokens, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount, usageMetadata?.ActualResponseTokenCount);
 
-      return new Response(responseContent, replacements);
+      return new Response(responseContent, replacements?.Replacements ?? []);
     }
     finally
     {
@@ -222,10 +202,7 @@ public class GeminiConnector(
   {
     // This is static, so no logging needed here.
     return new Content([
-      new TextPart("You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. "
-                   + "The response should contain the complete code for the files that should be changed. "
-                   + "Use the provided file paths in the responses to identify the files. "
-                   + "Do not change anything else in the code, just fix the issues that are described in the prompt. Do not add any comments, explanations or unnecessary whitespace to the code."),
+      new TextPart(SYSTEM_PROMPT),
     ]);
   }
 

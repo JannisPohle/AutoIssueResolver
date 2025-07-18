@@ -138,6 +138,7 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
   }
 
   /// <inheritdoc />
+  /// TODO only get files for a specific issue (based on the rule ID)
   public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default)
   {
     logger.LogInformation("Getting all files with extension filter {ExtensionFilter}", extensionFilter);

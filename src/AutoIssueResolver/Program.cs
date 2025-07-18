@@ -4,6 +4,7 @@ using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Google;
+using AutoIssueResolver.AIConnector.OpenAI;
 using AutoIssueResolver.Application;
 using AutoIssueResolver.Application.Abstractions;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions;
@@ -50,9 +51,20 @@ builder.Services.AddHttpClient("google", configureClient =>
        {
          configureClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
          configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
        })
        .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<GeminiConnector>(serviceProvider));
+
+builder.Services.AddHttpClient("openAI", configureClient =>
+       {
+         configureClient.BaseAddress = new Uri("https://api.openai.com");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("AiAgent:token"));
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
+       })
+       .AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<OpenAIConnector>(serviceProvider));
 
 builder.Services.AddHttpClient("sonarqube", configureClient =>
        {
@@ -71,7 +83,8 @@ builder.Services
        .AddSingleton<IRunMetadata, RunMetadata>();
 
 // AI Connectors
-builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite);
+builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano);
 
 // Code Analysis Connectors
 builder.Services.AddKeyedTransient<ICodeAnalysisConnector, SonarqubeConnector>(CodeAnalysisTypes.Sonarqube);

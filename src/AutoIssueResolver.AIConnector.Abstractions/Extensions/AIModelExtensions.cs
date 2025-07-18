@@ -20,6 +20,7 @@ public static class AiModelExtensions
     return model switch
     {
       AIModels.GeminiFlashLite => "gemini-2.0-flash-lite",
+      AIModels.GPT4oNano => "gpt-4.1-nano",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }
@@ -35,6 +36,7 @@ public static class AiModelExtensions
     return model switch
     {
       AIModels.GeminiFlashLite => "Google",
+      AIModels.GPT4oNano => "OpenAI",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }

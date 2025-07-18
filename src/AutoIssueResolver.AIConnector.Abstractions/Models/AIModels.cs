@@ -7,4 +7,5 @@ public enum AIModels
 {
   None,
   GeminiFlashLite,
+  GPT4oNano
 }

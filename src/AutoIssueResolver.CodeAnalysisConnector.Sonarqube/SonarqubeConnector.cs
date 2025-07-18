@@ -105,6 +105,12 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     foreach (var section in rule.DescriptionSections ?? [])
     {
+      if (section.Key == "resources")
+      {
+        // Skip resources section as it only contains links that cannot be used by the model
+        continue;
+      }
+
       var title = section.Key switch
       {
         "root_cause" => "Root Cause",

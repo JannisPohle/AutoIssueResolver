@@ -103,8 +103,9 @@ internal static class PolicyExtensions
   {
     var logger = serviceProvider.GetRequiredService<ILogger<T>>();
 
-    logger.LogInformation("(Try {Retry}) Retrying request to Google AI API after {WaitTime} due to response with status {StatusCode}: {Reason} - {Content}",
+    logger.LogInformation("(Try {Retry}) Retrying request to {Connector} API after {WaitTime} due to response with status {StatusCode}: {Reason} - {Content}",
                           i,
+                          typeof(T).Name,
                           waitTime,
                           result.Result.StatusCode,
                           result.Result.ReasonPhrase,

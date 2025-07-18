@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AutoIssueResolver.AIConnector.Abstractions\AutoIssueResolver.AIConnector.Abstractions.csproj"/>
+    <ProjectReference Include="..\AutoIssueResolver.AIConnectors.Base\AutoIssueResolver.AIConnectors.Base.csproj" />
     <ProjectReference Include="..\AutoIssueResolver.Application.Abstractions\AutoIssueResolver.Application.Abstractions.csproj"/>
     <ProjectReference Include="..\AutoIssueResolver.GitConnector.Abstractions\AutoIssueResolver.GitConnector.Abstractions.csproj"/>
     <ProjectReference Include="..\AutoIssueResolver.Persistence.Abstractions\AutoIssueResolver.Persistence.Abstractions.csproj"/>

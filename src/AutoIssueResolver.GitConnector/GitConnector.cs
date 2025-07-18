@@ -145,6 +145,7 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     var files = new List<SourceFile>();
 
     //TODO maybe make exclusions configurable via the configuration
+    //TODO ensure the files are always in the same order
     foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
     {
       if(filePath.Contains("bin") || filePath.Contains("obj"))

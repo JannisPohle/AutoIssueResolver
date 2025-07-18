@@ -28,7 +28,7 @@ public class GeminiConnector(
   IRunMetadata metadata,
   ISourceCodeConnector sourceCodeConnector,
   IReportingRepository reportingRepository,
-  ILogger<GeminiConnector> logger): AIConnectorBase(logger), IAIConnector
+  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient), IAIConnector
 {
   #region Static
 
@@ -42,7 +42,7 @@ public class GeminiConnector(
   #region Methods
 
   /// <inheritdoc />
-  public async Task SetupCaching(CancellationToken cancellationToken = default)
+  public override async Task SetupCaching(CancellationToken cancellationToken = default)
   {
     if (!string.IsNullOrWhiteSpace(metadata.CacheName))
     {
@@ -67,7 +67,7 @@ public class GeminiConnector(
   }
 
   /// <inheritdoc />
-  public async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
+  public override async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
   {
     logger.LogDebug("Checking if GeminiConnector can handle model: {Model}", model);
     if (AIModels.GeminiFlashLite == model)
@@ -78,59 +78,31 @@ public class GeminiConnector(
     return false;
   }
 
-  //TODO set max output tokens
-  /// <inheritdoc />
-  public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
+  protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    logger.LogInformation("Getting response from Gemini for prompt...");
-    if (!await CanHandleModel(configuration.Value.Model, cancellationToken))
-    {
-      logger.LogError("The model {Model} is not supported by this connector.", configuration.Value.Model);
-      throw new InvalidOperationException("The model is not supported by this connector.");
-    }
+    //TODO set max output tokens
+    var jsonSchema = ResponseSchema;
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
 
-    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CodeGeneration, token: cancellationToken);
+    await AddCachedContent(request);
 
-    UsageMetadata usageMetadata = null;
-    try
-    {
-      logger.LogDebug("Preparing JSON schema for Gemini request.");
-      var jsonSchema = ResponseSchema;
+    return request;
+  }
 
-      var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema)));
+  protected override string GetResponsesApiPath()
+  {
+    return CreateUrl(API_PATH_CHAT);
+  }
 
-      await AddCachedContent(request);
+  protected override async Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken)
+  {
+    //TODO handle unsuccessful response (based on the status in the response itself)
+    var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
+    var usageMetadata = chatResponse?.UsageMetadata;
 
-      logger.LogDebug("Sending request to Gemini API: {Url}", CreateUrl(API_PATH_CHAT));
-      var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CHAT), request, cancellationToken);
+    var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
 
-      if (!response.IsSuccessStatusCode)
-      {
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogError("Failed to get response from Gemini ({ReasonPhrase}): {Content}", response.ReasonPhrase, errorContent);
-        throw new Exception($"Failed to get response from Gemini ({response.ReasonPhrase}): {errorContent}");
-      }
-
-      logger.LogDebug("Reading response from Gemini API.");
-      var chatResponse = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken);
-      usageMetadata = chatResponse?.UsageMetadata;
-
-      var responseContent = chatResponse?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text ?? string.Empty;
-      logger.LogTrace("Gemini raw response content: {ResponseContent}", responseContent);
-
-      //TODO handle invalid response content
-      var replacements = JsonSerializer.Deserialize<ReplacementResponse>(responseContent, JsonSerializerOptions.Web);
-
-      logger.LogInformation("Received response from Gemini with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .", replacements?.Replacements.Count ?? 0, usageMetadata?.ActualUsedTokens, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount, usageMetadata?.ActualResponseTokenCount);
-
-      return new Response(responseContent, replacements?.Replacements ?? []);
-    }
-    finally
-    {
-      logger.LogDebug("Ending reporting request for Gemini response.");
-      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount, usageMetadata?.ActualRequestTokenCount,
-                                           usageMetadata?.ActualResponseTokenCount, cancellationToken);
-    }
+    return new AiResponse(responseContent, usageMetadata ?? new UsageMetadata(0, 0, 0, 0, 0));
   }
 
   private async Task AddCachedContent(ChatRequest request)

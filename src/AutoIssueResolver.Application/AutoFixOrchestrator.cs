@@ -164,6 +164,7 @@ public class AutoFixOrchestrator(
 
   //TODO introduce CoT prompt
   //TODO optimize prompt for caching (ensure variable content is placed at the end)
+  //TODO add programming language to the prompt
   private async Task<Prompt> CreatePrompt(Issue issue, Rule rule)
   {
     logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);

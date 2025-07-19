@@ -138,17 +138,16 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
   }
 
   /// <inheritdoc />
-  /// TODO only get files for a specific issue (based on the rule ID)
-  public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default)
+  public async Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", string? folderFilter = null, CancellationToken cancellationToken = default)
   {
-    logger.LogInformation("Getting all files with extension filter {ExtensionFilter}", extensionFilter);
+    logger.LogInformation("Getting all files with extension filter {ExtensionFilter} and folder filter {FolderFilter}", extensionFilter, folderFilter);
     var files = new List<SourceFile>();
 
     //TODO maybe make exclusions configurable via the configuration
     //TODO ensure the files are always in the same order
-    foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories))
+    foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories).OrderBy(file => file, StringComparer.InvariantCultureIgnoreCase))
     {
-      if(filePath.Contains("bin") || filePath.Contains("obj"))
+      if (filePath.Contains("bin") || filePath.Contains("obj"))
       {
         logger.LogDebug("Skipping file {FilePath} as it is in bin or obj directory", filePath);
         continue; // Skip files in bin or obj directories
@@ -162,14 +161,20 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
         continue;
       }
 
+      if (!string.IsNullOrWhiteSpace(folderFilter) && !relativePath.Contains(folderFilter, StringComparison.InvariantCultureIgnoreCase))
+      {
+        logger.LogDebug("Skipping file {FilePath} as it does not contain the folder filter {FolderFilter}", relativePath, folderFilter);
+        continue; // Skip files that do not match the folder filter
+      }
+
       files.Add(new SourceFile
       {
         FilePath = relativePath,
-        FileContent = await GetFileContent(relativePath, cancellationToken), //Remove local path from file path, since this will be added back in GetFileContent
+        FileContent = await GetFileContent(relativePath, cancellationToken),
       });
     }
 
-    logger.LogInformation("Found {FileCount} files with extension filter {ExtensionFilter}", files.Count, extensionFilter);
+    logger.LogInformation("Found {FileCount} files with extension filter {ExtensionFilter} and folder filter {FolderFilter}", files.Count, extensionFilter, folderFilter);
     return files;
   }
 

@@ -37,32 +37,43 @@ public class GeminiConnector(
   private const string API_PATH_CHAT = $"v1beta/models/{PLACEHOLDER_MODEL_NAME}:generateContent";
   private const string API_PATH_CACHE = "v1beta/cachedContents";
 
+  private static readonly Dictionary<string, string?> _cacheMetadata = new();
+
   #endregion
 
   #region Methods
 
   /// <inheritdoc />
-  public override async Task SetupCaching(CancellationToken cancellationToken = default)
+  public override async Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
   {
-    if (!string.IsNullOrWhiteSpace(metadata.CacheName))
+    var missingCaches = rules.Except(_cacheMetadata.Keys).ToList();
+
+    if (missingCaches.Count == 0)
     {
-      logger.LogDebug("Cache already exists with name: {CacheName}", metadata.CacheName);
+      logger.LogDebug("Caches already exist");
       return;
     }
 
-    try
+    foreach (var ruleId in rules)
     {
-      logger.LogInformation("Setting up Gemini cache...");
-      var cache = new CachedContent(await CreateCacheContent(), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
+      try
+      {
+        logger.LogInformation("Setting up Gemini cache for rule {RuleId}...", ruleId);
+        var cache = new CachedContent(await CreateCacheContent(ruleId), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
 
-      var cacheName = await CreateCache(cache, cancellationToken);
+        var cacheName = await CreateCache(cache, cancellationToken);
 
-      metadata.CacheName = cacheName;
-      logger.LogInformation("Gemini cache setup complete. CacheName: {CacheName}", cacheName);
-    }
-    catch (Exception e)
-    {
-      logger.LogError(e, "Unknown error occured while setting up caching for Gemini connector");
+        if (!string.IsNullOrWhiteSpace(cacheName))
+        {
+          _cacheMetadata.Add(ruleId, cacheName);
+        }
+
+        logger.LogInformation("Gemini cache setup for rule {RuleId} complete. CacheName: {CacheName}", ruleId, cacheName);
+      }
+      catch (Exception e)
+      {
+        logger.LogError(e, "Unknown error occured while setting up caching for rule {RuleId}", ruleId);
+      }
     }
   }
 
@@ -83,7 +94,7 @@ public class GeminiConnector(
     var jsonSchema = ResponseSchema;
     var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema), MAX_OUTPUT_TOKENS));
 
-    await AddCachedContent(request);
+    await AddCachedContent(request, prompt.RuleId);
 
     return request;
   }
@@ -123,17 +134,17 @@ public class GeminiConnector(
     return new AiResponse(responseContent, usageMetadata ?? new UsageMetadata(0, 0, 0, 0, 0));
   }
 
-  private async Task AddCachedContent(ChatRequest request)
+  private async Task AddCachedContent(ChatRequest request, string ruleId)
   {
-    if (!string.IsNullOrWhiteSpace(metadata.CacheName))
+    if (_cacheMetadata.TryGetValue(ruleId, out var cacheName) && !string.IsNullOrWhiteSpace(cacheName))
     {
-      logger.LogDebug("Adding cached content reference to Gemini request: {CacheName}", metadata.CacheName);
-      request.CachedContent = metadata.CacheName;
+      logger.LogDebug("Adding cached content reference to Gemini request: {CacheName}", cacheName);
+      request.CachedContent = cacheName;
     }
     else
     {
       logger.LogDebug("No cache available, adding full cache content to Gemini request.");
-      var cacheContent = await CreateCacheContent();
+      var cacheContent = await CreateCacheContent(ruleId);
       request.Contents.AddRange(cacheContent);
       request.SystemInstruction ??= CreateSystemPrompt();
     }
@@ -200,10 +211,10 @@ public class GeminiConnector(
     ]);
   }
 
-  private async Task<List<Content>> CreateCacheContent()
+  private async Task<List<Content>> CreateCacheContent(string? ruleId = null)
   {
     logger.LogDebug("Fetching all source files for Gemini cache content.");
-    var files = await sourceCodeConnector.GetAllFiles(cancellationToken: CancellationToken.None);
+    var files = await sourceCodeConnector.GetAllFiles(folderFilter: ruleId, cancellationToken: CancellationToken.None);
 
     var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", JsonSerializer.Serialize(file, JsonSerializerOptions.Web)))).Cast<Part>().ToList();
 

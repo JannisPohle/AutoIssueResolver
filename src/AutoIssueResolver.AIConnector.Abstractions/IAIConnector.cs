@@ -22,7 +22,7 @@ public interface IAIConnector
   /// <summary>
   ///   Sets up caching for the connector.
   /// </summary>
-  Task SetupCaching(CancellationToken cancellationToken = default);
+  Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default);
 
   #endregion
 }

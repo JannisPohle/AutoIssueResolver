@@ -69,11 +69,12 @@ public class AutoFixOrchestrator(
       }
       logger.LogDebug("Source code setup completed successfully");
 
-      logger.LogDebug("Setting up AI connector caching");
-      await _aiConnector.SetupCaching(stoppingToken);
-
       logger.LogDebug("Retrieving issues from code analysis");
       (var issues, result) = await GetIssues(stoppingToken);
+
+      logger.LogDebug("Setting up AI connector caching");
+      await _aiConnector.SetupCaching(issues.Select(i => i.RuleIdentifier.ShortIdentifier ?? string.Empty).ToList(), stoppingToken);
+
 
       if (!result.CanContinue)
       {
@@ -101,7 +102,7 @@ public class AutoFixOrchestrator(
     }
     finally
     {
-      logger.LogInformation("Ending application run");
+      logger.LogInformation("Ending application run: {CorrelationId}", metadata.CorrelationId);
       await _reportingRepository.EndApplicationRun(stoppingToken);
     }
 
@@ -178,7 +179,7 @@ public class AutoFixOrchestrator(
                         **File Path**: {{issue.FilePath}}
                         **Affected Lines**: {{issue.Range.StartLine}}-{{issue.Range.EndLine}}
                         **Issue Description**: {{rule.Description}}
-                        """);
+                        """, rule.ShortIdentifier ?? string.Empty);
   }
 
   private async Task ReplaceFileContents(List<Replacement> replacements)

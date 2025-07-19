@@ -72,25 +72,25 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
 
   private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
   {
-    var files = await GetFileContents(cancellationToken);
+    var files = await GetFileContents(prompt, cancellationToken);
 
     var finalPrompt = $"# Files{Environment.NewLine}{files}{Environment.NewLine}# Prompt{Environment.NewLine}{prompt.PromptText}";
 
     return finalPrompt;
   }
 
-  public override Task SetupCaching(CancellationToken cancellationToken = default)
+  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
   {
     // OpenAI API does not support explicit caching
     return Task.CompletedTask;
   }
 
-  private async Task<string> GetFileContents(CancellationToken cancellationToken)
+  private async Task<string> GetFileContents(Prompt prompt, CancellationToken cancellationToken)
   {
-    var files = await sourceCodeConnector.GetAllFiles(cancellationToken: cancellationToken);
+    var files = await sourceCodeConnector.GetAllFiles(folderFilter: prompt.RuleId, cancellationToken: cancellationToken);
     if (files.Count == 0)
     {
-      logger.LogWarning("No files found in the repository.");
+      logger.LogWarning("No files found in the repository for rule {RuleId}.", prompt.RuleId);
       return string.Empty;
     }
 

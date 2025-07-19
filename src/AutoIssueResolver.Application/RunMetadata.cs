@@ -15,8 +15,5 @@ public class RunMetadata: IRunMetadata
   /// <inheritdoc />
   public string BranchName { get; set; } = string.Empty;
 
-  /// <inheritdoc />
-  public string? CacheName { get; set; } = string.Empty;
-
   #endregion
 }

@@ -49,7 +49,7 @@ public interface ISourceCodeConnector
   /// <summary>
   ///   Gets all files matching the extension filter.
   /// </summary>
-  Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", CancellationToken cancellationToken = default);
+  Task<List<SourceFile>> GetAllFiles(string extensionFilter = "*cs", string? folderFilter = null, CancellationToken cancellationToken = default);
 
   #endregion
 }

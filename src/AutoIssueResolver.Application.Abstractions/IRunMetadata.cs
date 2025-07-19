@@ -17,10 +17,5 @@ public interface IRunMetadata
   /// </summary>
   string? BranchName { get; set; }
 
-  /// <summary>
-  ///   The name of the cache used for the AI agent, if available
-  /// </summary>
-  string? CacheName { get; set; }
-
   #endregion
 }

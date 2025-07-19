@@ -107,7 +107,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
   public abstract Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default);
 
-  public abstract Task SetupCaching(CancellationToken cancellationToken = default);
+  public abstract Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default);
 
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
@@ -132,7 +132,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
       context.Properties.Set(new ResiliencePropertyKey<IReportingRepository?>("repository"), reportingRepository);
       context.Properties.Set(new ResiliencePropertyKey<Prompt?>("prompt"), prompt);
 
-      (var response, usageMetadata) = await _retryPolicy.ExecuteAsync(async state => await GetAiResponseInternal(state.Properties.GetValue(new ResiliencePropertyKey<Prompt>("prompt"), new Prompt(string.Empty)), state.CancellationToken), context);
+      (var response, usageMetadata) = await _retryPolicy.ExecuteAsync(async state => await GetAiResponseInternal(state.Properties.GetValue(new ResiliencePropertyKey<Prompt>("prompt"), new Prompt(string.Empty, string.Empty)), state.CancellationToken), context);
 
       logger.LogDebug("Ending reporting request for OpenAI response.");
 

@@ -45,7 +45,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     var mappedIssues = issues.Issues.Select(issue =>
       new Issue(
-        new RuleIdentifier(issue.Rule),
+        new RuleIdentifier(issue.Rule) { ShortIdentifier = ExtractShortIdentifier(issue.Rule)},
         issues.Components.First(component => component.Key == issue.Component).Path,
         new TextRange(issue.TextRange.StartLine, issue.TextRange.EndLine)
       )).ToList();
@@ -86,7 +86,7 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
 
     var description = GetDescription(rule);
 
-    return new Rule(rule.Key, rule.Name, description);
+    return new Rule(rule.Key, rule.Name, description) { ShortIdentifier = ExtractShortIdentifier(rule.Key), };
   }
 
   private string GetDescription(SonarqubeRule rule)
@@ -141,6 +141,13 @@ public class SonarqubeConnector([FromKeyedServices("sonarqube")] HttpClient http
     htmlDoc.LoadHtml(input);
 
     return WebUtility.HtmlDecode(htmlDoc.DocumentNode.InnerText);
+  }
+
+  private string ExtractShortIdentifier(string ruleId)
+  {
+    // Extract the short identifier from the rule ID, e.g., "csharpsquid:S1234" -> "S1234"
+    var parts = ruleId.Split(':');
+    return parts.Length > 1 ? parts[1] : ruleId;
   }
 
   #endregion

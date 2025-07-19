@@ -85,7 +85,8 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
     sb.AppendLine("# Files");
     foreach (var file in files)
     {
-      sb.AppendLine($"## {file.FilePath}");
+      sb.AppendLine($"## File Path: {file.FilePath}");
+      sb.AppendLine("Content:");
       sb.AppendLine("```");
       sb.AppendLine(file.FileContent);
       sb.AppendLine("```");

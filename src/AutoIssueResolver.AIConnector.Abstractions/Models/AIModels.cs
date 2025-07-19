@@ -9,4 +9,5 @@ public enum AIModels
   GeminiFlashLite,
   GPT4oNano,
   ClaudeHaiku3,
+  DevstralSmall
 }

@@ -5,6 +5,7 @@ using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Anthropic;
 using AutoIssueResolver.AIConnector.Google;
+using AutoIssueResolver.AIConnector.Mistral;
 using AutoIssueResolver.AIConnector.OpenAI;
 using AutoIssueResolver.Application;
 using AutoIssueResolver.Application.Abstractions;
@@ -78,6 +79,16 @@ builder.Services.AddHttpClient("anthropic", configureClient =>
        .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<ClaudeConnector>(serviceProvider));
 
+builder.Services.AddHttpClient("mistral", configureClient =>
+       {
+         configureClient.BaseAddress = new Uri("https://api.mistral.ai");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("AiAgent:token"));
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
+       })
+       .AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<ClaudeConnector>(serviceProvider));
+
 builder.Services.AddHttpClient("sonarqube", configureClient =>
        {
          configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
@@ -97,6 +108,7 @@ builder.Services
 // AI Connectors
 builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
+       .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.DevstralSmall)
        .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku3);
 
 // Code Analysis Connectors

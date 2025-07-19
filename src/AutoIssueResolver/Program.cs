@@ -6,6 +6,7 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Anthropic;
 using AutoIssueResolver.AIConnector.Google;
 using AutoIssueResolver.AIConnector.Mistral;
+using AutoIssueResolver.AIConnector.Ollama;
 using AutoIssueResolver.AIConnector.OpenAI;
 using AutoIssueResolver.Application;
 using AutoIssueResolver.Application.Abstractions;
@@ -89,6 +90,15 @@ builder.Services.AddHttpClient("mistral", configureClient =>
        .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<ClaudeConnector>(serviceProvider));
 
+builder.Services.AddHttpClient("ollama", configureClient =>
+       {
+         configureClient.BaseAddress = new Uri("http://host.docker.internal:11434");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
+       })
+       .AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<OllamaConnector>(serviceProvider));
+
 builder.Services.AddHttpClient("sonarqube", configureClient =>
        {
          configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
@@ -109,6 +119,7 @@ builder.Services
 builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
        .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.DevstralSmall)
+       .AddKeyedTransient<IAIConnector, OllamaConnector>(AIModels.Phi4)
        .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku3);
 
 // Code Analysis Connectors

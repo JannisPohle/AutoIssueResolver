@@ -103,13 +103,24 @@ internal static class PolicyExtensions
   {
     var logger = serviceProvider.GetRequiredService<ILogger<T>>();
 
-    logger.LogInformation("(Try {Retry}) Retrying request to {Connector} API after {WaitTime} due to response with status {StatusCode}: {Reason} - {Content}",
-                          i,
-                          typeof(T).Name,
-                          waitTime,
-                          result.Result.StatusCode,
-                          result.Result.ReasonPhrase,
-                          await result.Result.Content.ReadAsStringAsync());
+    if (result.Result is not null)
+    {
+      logger.LogInformation("(Try {Retry}) Retrying request to {Connector} API after {WaitTime} due to response with status {StatusCode}: {Reason} - {Content}",
+                            i,
+                            typeof(T).Name,
+                            waitTime,
+                            result.Result.StatusCode,
+                            result.Result.ReasonPhrase,
+                            await result.Result.Content.ReadAsStringAsync());
+    }
+    else if (result.Exception is not null)
+    {
+      logger.LogInformation(result.Exception, "(Try {Retry}) Retrying request to {Connector} API after {WaitTime} due to exception during the request", i, typeof(T).Name, waitTime);
+    }
+    else
+    {
+      logger.LogInformation("(Try {Retry}) Retrying request to {Connector} API after {WaitTime} due to unknown error", i, typeof(T).Name, waitTime);
+    }
   }
 
   #endregion

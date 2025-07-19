@@ -17,7 +17,7 @@ public record AiAgentConfiguration
   /// <summary>
   ///   The authentication token for the AI service.
   /// </summary>
-  public string Token { get; init; } = string.Empty;
+  public string? Token { get; init; } = string.Empty;
 
   #endregion
 }

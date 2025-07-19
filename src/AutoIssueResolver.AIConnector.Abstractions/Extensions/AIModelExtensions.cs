@@ -23,6 +23,7 @@ public static class AiModelExtensions
       AIModels.GPT4oNano => "gpt-4.1-nano",
       AIModels.ClaudeHaiku3 => "claude-3-haiku-20240307",
       AIModels.DevstralSmall => "devstral-small-2505",
+      AIModels.Phi4 => "phi4:latest",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }
@@ -41,6 +42,7 @@ public static class AiModelExtensions
       AIModels.GPT4oNano => "OpenAI",
       AIModels.ClaudeHaiku3 => "Anthropic",
       AIModels.DevstralSmall => "MistralAI",
+      AIModels.Phi4 => "Microsoft (Lokal)",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }

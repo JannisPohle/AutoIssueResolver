@@ -42,6 +42,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.AIConnect
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.AIConnector.Mistral", "src\AutoIssueResolver.AIConnector.Mistral\AutoIssueResolver.AIConnector.Mistral.csproj", "{B3E61EE7-1A9F-4C5C-98A4-E9CBE5F89908}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoIssueResolver.AIConnector.Ollama", "src\AutoIssueResolver.AIConnector.Ollama\AutoIssueResolver.AIConnector.Ollama.csproj", "{894A8471-5464-41BD-B434-26B8C3EE6D98}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -112,6 +114,10 @@ Global
 		{B3E61EE7-1A9F-4C5C-98A4-E9CBE5F89908}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B3E61EE7-1A9F-4C5C-98A4-E9CBE5F89908}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B3E61EE7-1A9F-4C5C-98A4-E9CBE5F89908}.Release|Any CPU.Build.0 = Release|Any CPU
+		{894A8471-5464-41BD-B434-26B8C3EE6D98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{894A8471-5464-41BD-B434-26B8C3EE6D98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{894A8471-5464-41BD-B434-26B8C3EE6D98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{894A8471-5464-41BD-B434-26B8C3EE6D98}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4514C9B7-FAB8-468B-9F8D-ED15D3D58548} = {A1D5D374-A628-4440-A772-EE082A459E03}
@@ -129,5 +135,6 @@ Global
 		{E68E9534-9F7A-4E8A-8B50-53D399A720D0} = {A1D5D374-A628-4440-A772-EE082A459E03}
 		{8C9CB0A6-C369-47E9-B4AC-E2D31E5EA36A} = {A1D5D374-A628-4440-A772-EE082A459E03}
 		{B3E61EE7-1A9F-4C5C-98A4-E9CBE5F89908} = {A1D5D374-A628-4440-A772-EE082A459E03}
+		{894A8471-5464-41BD-B434-26B8C3EE6D98} = {A1D5D374-A628-4440-A772-EE082A459E03}
 	EndGlobalSection
 EndGlobal

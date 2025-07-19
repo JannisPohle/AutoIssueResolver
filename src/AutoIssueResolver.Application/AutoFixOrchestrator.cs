@@ -209,7 +209,7 @@ public class AutoFixOrchestrator(
 
   private void PrepareMetadata()
   {
-    var branchName = $"auto-fix/{aiConfiguration.Value.Model.GetModelVendor()}/{aiConfiguration.Value.Model.GetModelName()}/{metadata.CorrelationId}-auto-fix";
+    var branchName = $"auto-fix/{aiConfiguration.Value.Model.GetModelVendor().Replace('(', '_').Replace(')', '_').Replace(' ', '-')}/{aiConfiguration.Value.Model.GetModelName().Replace(':', '-')}/{metadata.CorrelationId}-auto-fix";
     metadata.BranchName = branchName;
     logger.LogDebug("Prepared metadata with branch name: {BranchName}", branchName);
   }
@@ -217,7 +217,7 @@ public class AutoFixOrchestrator(
   private void ValidateConfiguration()
   {
     // Validate AI configuration
-    if (aiConfiguration.Value == null || aiConfiguration.Value.Model == AIModels.None || string.IsNullOrWhiteSpace(aiConfiguration.Value.Token))
+    if (aiConfiguration.Value == null || aiConfiguration.Value.Model == AIModels.None)
     {
       logger.LogError("Invalid AI configuration: Model or Token is missing.");
       throw new InvalidOperationException("AI configuration is invalid. Model and Token must be set.");

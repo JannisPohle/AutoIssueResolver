@@ -28,7 +28,7 @@ public class GeminiConnector(
   IRunMetadata metadata,
   ISourceCodeConnector sourceCodeConnector,
   IReportingRepository reportingRepository,
-  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient), IAIConnector
+  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector), IAIConnector
 {
   #region Static
 
@@ -40,6 +40,8 @@ public class GeminiConnector(
   private static readonly Dictionary<string, string?> _cacheMetadata = new();
 
   #endregion
+
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.GeminiFlashLite,];
 
   #region Methods
 
@@ -75,18 +77,6 @@ public class GeminiConnector(
         logger.LogError(e, "Unknown error occured while setting up caching for rule {RuleId}", ruleId);
       }
     }
-  }
-
-  /// <inheritdoc />
-  public override async Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
-  {
-    logger.LogDebug("Checking if GeminiConnector can handle model: {Model}", model);
-    if (AIModels.GeminiFlashLite == model)
-    {
-      return true;
-    }
-
-    return false;
   }
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)

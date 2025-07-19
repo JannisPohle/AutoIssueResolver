@@ -4,6 +4,8 @@ using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
+using AutoIssueResolver.Application.Abstractions.Models;
+using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,7 @@ using Polly.Retry;
 
 namespace AutoIssueResolver.AIConnectors.Base;
 
-public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, HttpClient httpClient): IAIConnector
+public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, HttpClient httpClient, ISourceCodeConnector sourceCodeConnector): IAIConnector
 {
   #region Static
 
@@ -101,11 +103,27 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
   /// </summary>
   protected static string ResponseSchemaWithAdditionalProperties => RESPONSE_SCHEMA.Replace("{{ADDITIONAL_PROPERTIES}}", ADDITIONAL_PROPERTIES).ReplaceLineEndings();
 
+  /// <summary>
+  /// Gets a list of supported models by the current connector
+  /// </summary>
+  protected abstract List<AIModels> SupportedModels { get; }
+
   #endregion
 
   #region Methods
 
-  public abstract Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default);
+  public virtual Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
+  {
+    logger.LogDebug("Checking if model {Model} can be handled by this connector", model);
+    if (SupportedModels.Contains(model))
+    {
+      logger.LogDebug("Model {Model} is supported by this connector.", model);
+      return Task.FromResult(true);
+    }
+
+    logger.LogDebug("Model {Model} is not supported by this connector.", model);
+    return Task.FromResult(false);
+  }
 
   public abstract Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default);
 
@@ -204,6 +222,20 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
   protected abstract string GetResponsesApiPath();
 
   protected abstract Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken);
+
+  protected async Task<List<SourceFile>> GetFileContents(Prompt prompt, CancellationToken cancellationToken)
+  {
+    var files = await sourceCodeConnector.GetAllFiles(folderFilter: prompt.RuleId, cancellationToken: cancellationToken);
+    if (files.Count == 0)
+    {
+      logger.LogWarning("No files found in the repository for rule {RuleId}.", prompt.RuleId);
+      return [];
+    }
+
+    logger.LogDebug("Found {FileCount} files.", files.Count);
+
+    return files;
+  }
 
   #endregion
 }

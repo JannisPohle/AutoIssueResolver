@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AutoIssueResolver.AIConnector.Anthropic\AutoIssueResolver.AIConnector.Anthropic.csproj" />
     <ProjectReference Include="..\AutoIssueResolver.AIConnector.Google\AutoIssueResolver.AIConnector.Google.csproj"/>
     <ProjectReference Include="..\AutoIssueResolver.AIConnector.OpenAI\AutoIssueResolver.AIConnector.OpenAI.csproj" />
     <ProjectReference Include="..\AutoIssueResolver.Application\AutoIssueResolver.Application.csproj"/>

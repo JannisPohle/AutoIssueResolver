@@ -8,6 +8,7 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.OpenAI.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
+using AutoIssueResolver.Application.Abstractions.Models;
 using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,20 +17,12 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.AIConnector.OpenAI;
 
-public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices("openAI")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient), IAIConnector
+public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices("openAI")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector), IAIConnector
 {
   private const string API_PATH_RESPONSES = "v1/responses";
 
-  public override Task<bool> CanHandleModel(AIModels model, CancellationToken cancellationToken = default)
-  {
-    logger.LogDebug("Checking if OpenAIConnector can handle model: {Model}", model);
-    if (AIModels.GPT4oNano == model)
-    {
-      return Task.FromResult(true);
-    }
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.GPT4oNano,];
 
-    return Task.FromResult(false);
-  }
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var request = new Request(await PreparePromptText(prompt, cancellationToken), configuration.Value.Model.GetModelName(), SYSTEM_PROMPT, new TextOptions(new Format("response_schema", JsonNode.Parse(ResponseSchemaWithAdditionalProperties))), MAX_OUTPUT_TOKENS);
@@ -45,13 +38,14 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   protected override async Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken)
   {
     var chatResponse = await response.Content.ReadFromJsonAsync<ResponseRoot>(cancellationToken);
-    var usageMetadata = new UsageMetadata(chatResponse?.Usage?.InputTokens ?? 0, chatResponse?.Usage?.InputTokensDetails?.CachedTokens ?? 0, chatResponse?.Usage?.TotalTokens ?? 0, chatResponse?.Usage?.OutputTokens ?? 0, chatResponse?.Usage?.OutputTokensDetails?.ReasoningTokens ?? 0);
 
     if (chatResponse == null)
     {
       logger.LogWarning("No response received from OpenAI API. Something seems to have gone wrong with the request.");
-      throw new UnsuccessfulResultException("No response received from OpenAI API", true) {  UsageMetadata = usageMetadata, };
+      throw new UnsuccessfulResultException("No response received from OpenAI API", true);
     }
+
+    var usageMetadata = new UsageMetadata(chatResponse.Usage?.InputTokens ?? 0, chatResponse.Usage?.InputTokensDetails?.CachedTokens ?? 0, chatResponse.Usage?.TotalTokens ?? 0, chatResponse.Usage?.OutputTokens ?? 0, chatResponse.Usage?.OutputTokensDetails?.ReasoningTokens ?? 0);
 
     if (!chatResponse.Status.Equals("completed", StringComparison.OrdinalIgnoreCase))
     {
@@ -74,7 +68,7 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   {
     var files = await GetFileContents(prompt, cancellationToken);
 
-    var finalPrompt = $"# Files{Environment.NewLine}{files}{Environment.NewLine}# Prompt{Environment.NewLine}{prompt.PromptText}";
+    var finalPrompt = $"# Files{Environment.NewLine}{JsonSerializer.Serialize(files, JsonSerializerOptions.Web)}{Environment.NewLine}# Prompt{Environment.NewLine}{prompt.PromptText}";
 
     return finalPrompt;
   }
@@ -83,18 +77,5 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   {
     // OpenAI API does not support explicit caching
     return Task.CompletedTask;
-  }
-
-  private async Task<string> GetFileContents(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await sourceCodeConnector.GetAllFiles(folderFilter: prompt.RuleId, cancellationToken: cancellationToken);
-    if (files.Count == 0)
-    {
-      logger.LogWarning("No files found in the repository for rule {RuleId}.", prompt.RuleId);
-      return string.Empty;
-    }
-
-    logger.LogDebug("Found {FileCount} files.", files.Count);
-    return JsonSerializer.Serialize(files, JsonSerializerOptions.Web);
   }
 }

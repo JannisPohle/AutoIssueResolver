@@ -3,6 +3,7 @@ using AutoIssueResolver;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
+using AutoIssueResolver.AIConnector.Anthropic;
 using AutoIssueResolver.AIConnector.Google;
 using AutoIssueResolver.AIConnector.OpenAI;
 using AutoIssueResolver.Application;
@@ -66,6 +67,17 @@ builder.Services.AddHttpClient("openAI", configureClient =>
        .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<OpenAIConnector>(serviceProvider));
 
+builder.Services.AddHttpClient("anthropic", configureClient =>
+       {
+         configureClient.BaseAddress = new Uri("https://api.anthropic.com");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.DefaultRequestHeaders.Add("x-api-key", builder.Configuration.GetValue<string>("AiAgent:token"));
+         configureClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
+       })
+       .AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<ClaudeConnector>(serviceProvider));
+
 builder.Services.AddHttpClient("sonarqube", configureClient =>
        {
          configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
@@ -84,7 +96,8 @@ builder.Services
 
 // AI Connectors
 builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
-       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano);
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
+       .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku3);
 
 // Code Analysis Connectors
 builder.Services.AddKeyedTransient<ICodeAnalysisConnector, SonarqubeConnector>(CodeAnalysisTypes.Sonarqube);

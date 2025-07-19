@@ -21,6 +21,7 @@ public static class AiModelExtensions
     {
       AIModels.GeminiFlashLite => "gemini-2.0-flash-lite",
       AIModels.GPT4oNano => "gpt-4.1-nano",
+      AIModels.ClaudeHaiku3 => "claude-3-haiku-20240307",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }
@@ -37,6 +38,7 @@ public static class AiModelExtensions
     {
       AIModels.GeminiFlashLite => "Google",
       AIModels.GPT4oNano => "OpenAI",
+      AIModels.ClaudeHaiku3 => "Anthropic",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }

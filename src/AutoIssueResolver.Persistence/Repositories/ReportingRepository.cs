@@ -2,13 +2,14 @@ using AutoIssueResolver.Application.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AutoIssueResolver.Persistence.Repositories;
 
 /// <summary>
 ///   Implements the data access layer for interacting with reporting data.
 /// </summary>
-public class ReportingRepository(ReportingContext reportingContext, IRunMetadata metadata): IReportingRepository
+public class ReportingRepository(ReportingContext reportingContext, IRunMetadata metadata, ILogger<ReportingRepository> logger): IReportingRepository
 {
   #region Methods
 
@@ -52,6 +53,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
       CachedTokens = 0,
       PromptTokens = 0,
       ResponseTokens = 0,
+      Status = EfRequestStatus.Open, // Initialize status to Open
     };
 
     applicationRun.Requests ??= [];
@@ -77,10 +79,17 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
   }
 
   /// <inheritdoc />
-  public async Task EndRequest(string requestId, int totalTokensUsed, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default)
+  public async Task EndRequest(string requestId, EfRequestStatus finalState, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default)
   {
     var request = await FindRequest(requestId, token);
 
+    if (request.Status != EfRequestStatus.Open)
+    {
+      logger.LogInformation("Request {RequestId} is already closed with status {Status}. No further updates will be made.", requestId, request.Status);
+      return;
+    }
+
+    request.Status = finalState;
     request.EndTimeUtc = DateTime.UtcNow;
     request.TotalTokensUsed += totalTokensUsed;
     request.CachedTokens += cachedTokens;

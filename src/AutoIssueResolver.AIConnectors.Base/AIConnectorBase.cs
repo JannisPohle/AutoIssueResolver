@@ -134,6 +134,11 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
       (var response, usageMetadata) = await _retryPolicy.ExecuteAsync(async state => await GetAiResponseInternal(state.Properties.GetValue(new ResiliencePropertyKey<Prompt>("prompt"), new Prompt(string.Empty)), state.CancellationToken), context);
 
+      logger.LogDebug("Ending reporting request for OpenAI response.");
+
+      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Succeeded, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
+                                           usageMetadata?.ActualResponseTokenCount ?? 0, cancellationToken);
+
       return response;
     }
     catch (UnsuccessfulResultException ex)
@@ -141,19 +146,20 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
       logger.LogInformation(ex, "Trying to get a response from the AI model failed on the last retry, request will be marked as failed.");
       if (ex.UsageMetadata != null)
       {
-        //TODO add status to the EfRequest and set to failed (adjust EndRequest method to also take the status; Ignore further requests when already set to finished)
-        await reportingRepository.IncrementRequestRetries(requestReference.Id, ex.UsageMetadata.TotalTokenCount, ex.UsageMetadata.CachedContentTokenCount, ex.UsageMetadata.ActualRequestTokenCount, ex.UsageMetadata.ActualResponseTokenCount, cancellationToken);
+        await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Failed, ex.UsageMetadata.TotalTokenCount, ex.UsageMetadata.CachedContentTokenCount, ex.UsageMetadata.ActualRequestTokenCount, ex.UsageMetadata.ActualResponseTokenCount, cancellationToken);
       }
 
+      throw;
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "An unexpected error occurred while trying to get a response from the AI model. Request will be marked as failed.");
+      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Failed, token: cancellationToken);
       throw;
     }
     finally
     {
       ResilienceContextPool.Shared.Return(context);
-      logger.LogDebug("Ending reporting request for OpenAI response.");
-
-      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
-                                           usageMetadata?.ActualResponseTokenCount ?? 0, cancellationToken);
     }
   }
 

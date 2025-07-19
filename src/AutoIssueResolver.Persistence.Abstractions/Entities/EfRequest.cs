@@ -53,6 +53,11 @@ public class EfRequest
   public int Retries { get; set; }
 
   /// <summary>
+  /// The status of the request, indicating whether it was successful, failed, or retried.
+  /// </summary>
+  public EfRequestStatus Status { get; set; } = EfRequestStatus.Open;
+
+  /// <summary>
   ///   Reference to the code smell, if applicable.
   /// </summary>
   public string? CodeSmellReference { get; set; }

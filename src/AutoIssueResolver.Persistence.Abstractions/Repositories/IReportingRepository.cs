@@ -32,7 +32,7 @@ public interface IReportingRepository
   /// <summary>
   ///   Marks the end of a request and records token usage.
   /// </summary>
-  Task EndRequest(string requestId, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default);
+  Task EndRequest(string requestId, EfRequestStatus finalState, int totalTokensUsed = 0, int cachedTokens = 0, int promptTokens = 0, int responseTokens = 0, CancellationToken token = default);
 
   #endregion
 }

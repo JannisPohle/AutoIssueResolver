@@ -172,12 +172,16 @@ public class GeminiConnector(
 
       logger.LogInformation("Cache created in Gemini: {CacheName}", cachedContentResponse?.Name);
 
+      logger.LogDebug("Ending reporting request for Gemini cache creation.");
+      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Succeeded, usageMetadata?.TotalTokenCount ?? 0, token: cancellationToken);
+
       return cachedContentResponse?.Name;
     }
-    finally
+    catch (Exception ex)
     {
-      logger.LogDebug("Ending reporting request for Gemini cache creation.");
-      await reportingRepository.EndRequest(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, token: cancellationToken);
+      logger.LogError(ex, "Setting up cache for Gemini connector failed. Request will be marked as failed. Request reference: {RequestReferenceId}", requestReference.Id);
+      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Failed, token: cancellationToken);
+      throw;
     }
   }
 

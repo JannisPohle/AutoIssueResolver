@@ -150,7 +150,7 @@ public class AutoFixOrchestrator(
       logger.LogDebug("AI response received for issue {RuleId}", issue.RuleIdentifier);
       logger.LogDebug("AI Response: {Response}", response);
 
-      await ReplaceFileContents(response.CodeReplacement);
+      await ReplaceFileContents(response.CodeReplacement, issue);
 
       logger.LogDebug("Committing changes for issue {RuleId}", issue.RuleIdentifier);
       await _git.CommitChanges(GetCommitMessage(issue, rule), stoppingToken);
@@ -186,22 +186,66 @@ public class AutoFixOrchestrator(
                         """, rule.ShortIdentifier ?? string.Empty);
   }
 
-  private async Task ReplaceFileContents(List<Replacement> replacements)
+  private async Task ReplaceFileContents(List<Replacement> replacements, Issue issue)
   {
     foreach (var replacement in replacements)
     {
       try
       {
-        //TODO maybe improve, how to deal with files not found by the name provided from the AI
-        logger.LogInformation("Updating file: {FileName}", replacement.FilePath);
-        await _git.UpdateFileContent(replacement.FilePath, replacement.NewCode);
-        logger.LogDebug("File {FileName} updated", replacement.FilePath);
+        await UpdateFileContent(replacement);
+      }
+      catch (FileNotFoundException ex)
+      {
+        logger.LogDebug("Path {FilePath} provided by the AI response does not exist, trying to find a matching file by the name.", replacement.FilePath);
+        var result = await TryFixFilePathAndUpdateContent(replacement, issue);
+        if (!result)
+        {
+          logger.LogWarning(ex, "File {FilePath} does not exist and could therefore not be updated. Also no matching file found for the file name only in the repository", replacement.FilePath);
+        }
+        else
+        {
+          logger.LogDebug("File {FilePath} updated successfully by searching for a matching file name", replacement.FilePath);
+        }
       }
       catch (Exception e)
       {
         logger.LogWarning(e, "Failed to update file {FileName}", replacement.FilePath);
       }
     }
+  }
+
+  private async Task UpdateFileContent(Replacement replacement)
+  {
+    logger.LogInformation("Updating file: {FileName}", replacement.FilePath);
+    await _git.UpdateFileContent(replacement.FilePath, replacement.NewCode);
+    logger.LogDebug("File {FileName} updated", replacement.FilePath);
+  }
+  
+  private async Task<bool> TryFixFilePathAndUpdateContent(Replacement replacement, Issue issue)
+  {
+    // Get relevant files from the git repository
+    var allFiles = await _git.GetAllFiles("*.cs", issue.RuleIdentifier.ShortIdentifier);
+    // Find the file that matches the replacement file path
+    var fileName = Path.GetFileName(replacement.FilePath);
+    logger.LogDebug("Searching for file with name {FileName} in the repository", fileName);
+    var matchingFile = allFiles.Where(f => Path.GetFileName(f.FilePath).Equals(fileName, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    if (matchingFile.Count == 0)
+    {
+      logger.LogDebug("No matching file found for {FileName} in the repository", fileName);
+      return false;
+    }
+
+    if (matchingFile.Count > 1)
+    {
+      logger.LogDebug("Multiple matching files found for {FileName} in the repository. Cannot determine which file to update.", fileName);
+      return false;
+    }
+
+    await _git.UpdateFileContent(matchingFile[0].FilePath, replacement.NewCode);
+    logger.LogDebug("File {FileName} updated successfully", replacement.FilePath);
+
+    return true;
   }
 
   private string GetCommitMessage(Issue issue, Rule rule)

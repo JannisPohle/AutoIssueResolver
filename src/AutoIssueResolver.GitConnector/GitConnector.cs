@@ -144,7 +144,6 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     var files = new List<SourceFile>();
 
     //TODO maybe make exclusions configurable via the configuration
-    //TODO ensure the files are always in the same order
     foreach (var filePath in Directory.EnumerateFiles(LocalPath, extensionFilter, SearchOption.AllDirectories).OrderBy(file => file, StringComparer.InvariantCultureIgnoreCase))
     {
       if (filePath.Contains("bin") || filePath.Contains("obj"))
@@ -187,7 +186,7 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
     if (!File.Exists(finalPath))
     {
       logger.LogError("File {FilePath} does not exist.", filePath);
-      throw new InvalidOperationException($"File {filePath} does not exist.");
+      throw new FileNotFoundException($"File {filePath} does not exist.");
     }
 
     await using var writer = new StreamWriter(finalPath);

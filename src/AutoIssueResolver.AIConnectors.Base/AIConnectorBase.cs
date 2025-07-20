@@ -205,22 +205,34 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     logger.LogDebug("Reading response from API.");
     var aiResponse = await ParseResponse(response, cancellationToken);
 
-    ReplacementResponse? replacements;
+    ReplacementResponse? replacementResponse;
+
     try
     {
-      replacements = JsonSerializer.Deserialize<ReplacementResponse>(aiResponse.ResponseText, JsonSerializerOptions.Web);
+      replacementResponse = JsonSerializer.Deserialize<ReplacementResponse>(aiResponse.ResponseText, JsonSerializerOptions.Web);
+    }
+    catch (JsonException ex)
+    {
+      if (TryCleanupAIResponseAndDeserialize(aiResponse.ResponseText, out replacementResponse))
+      {
+        logger.LogDebug("Successfully cleaned up AI response and deserialized replacements.");
+      }
+      else
+      {
+        logger.LogError(ex, "Failed to deserialize AI response: {ResponseText}", aiResponse.ResponseText);
+        throw new UnsuccessfulResultException("Failed to deserialize AI response", ex, true) { UsageMetadata = aiResponse.UsageMetadata, };
+      }
     }
     catch (Exception e)
     {
-      //TODO we could try to cleanup the response text slightly (e.g. try to detect additional text before or after the json object, try to escape newlines (especially for Anthropic responses), etc.)
       logger.LogError(e, "Failed to parse replacement response from API.");
       throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
     }
 
     logger.LogInformation("Received response from API with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",
-                          replacements?.Replacements.Count ?? 0, aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
+                          replacementResponse?.Replacements.Count ?? 0, aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
 
-    return (new Response(aiResponse.ResponseText, replacements?.Replacements ?? []), aiResponse.UsageMetadata);
+    return (new Response(aiResponse.ResponseText, replacementResponse?.Replacements ?? []), aiResponse.UsageMetadata);
   }
 
   protected abstract Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken);
@@ -260,6 +272,49 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     }
 
     return builder;
+  }
+
+  private bool TryCleanupAIResponseAndDeserialize(string responseText, out ReplacementResponse? replacements)
+  {
+    if (!responseText.StartsWith('{') && responseText.Contains('{'))
+    {
+      responseText = responseText[responseText.IndexOf('{', StringComparison.InvariantCultureIgnoreCase)..];
+      logger.LogDebug("Response text does not start with '{{', trying to find the first '{{' character to extract the JSON object.");
+    }
+
+    if (!responseText.EndsWith('}') && responseText.Contains('}'))
+    {
+      responseText = responseText[..(responseText.LastIndexOf('}') + 1)];
+      logger.LogDebug("Response text does not end with '}}', trying to find the last '}}' character to extract the JSON object.");
+    }
+
+    if (responseText.Contains('\n'))
+    {
+      responseText = responseText.Replace("\n", "\\n");
+      logger.LogDebug("Response text contains newlines, escaping them to avoid deserialization issues.");
+    }
+
+    try
+    {
+      logger.LogDebug("Trying to deserialize the AI response text after cleanup: {ResponseText}", responseText);
+      replacements = JsonSerializer.Deserialize<ReplacementResponse>(responseText, JsonSerializerOptions.Web);
+
+      if (replacements == null)
+      {
+        logger.LogDebug("Failed to deserialize AI response: {ResponseText}", responseText);
+
+        return false;
+      }
+
+      return true;
+    }
+    catch (JsonException ex)
+    {
+      logger.LogDebug(ex, "Failed to deserialize AI response: {ResponseText}", responseText);
+      replacements = null;
+
+      return false;
+    }
   }
 
   #endregion

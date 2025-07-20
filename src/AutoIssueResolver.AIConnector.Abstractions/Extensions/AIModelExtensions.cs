@@ -24,6 +24,7 @@ public static class AiModelExtensions
       AIModels.ClaudeHaiku3 => "claude-3-haiku-20240307",
       AIModels.DevstralSmall => "devstral-small-2505",
       AIModels.Phi4 => "phi4:latest",
+      AIModels.DeepSeekChat => "deepseek-chat",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }
@@ -43,6 +44,7 @@ public static class AiModelExtensions
       AIModels.ClaudeHaiku3 => "Anthropic",
       AIModels.DevstralSmall => "MistralAI",
       AIModels.Phi4 => "Microsoft (Lokal)",
+      AIModels.DeepSeekChat => "DeepSeek",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }

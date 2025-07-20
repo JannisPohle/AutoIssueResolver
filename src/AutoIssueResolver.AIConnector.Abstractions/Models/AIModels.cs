@@ -10,5 +10,6 @@ public enum AIModels
   GPT4oNano,
   ClaudeHaiku3,
   DevstralSmall,
-  Phi4
+  Phi4,
+  DeepSeekChat,
 }

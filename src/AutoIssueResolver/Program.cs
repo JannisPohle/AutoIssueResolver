@@ -4,6 +4,7 @@ using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Anthropic;
+using AutoIssueResolver.AIConnector.DeepSeek;
 using AutoIssueResolver.AIConnector.Google;
 using AutoIssueResolver.AIConnector.Mistral;
 using AutoIssueResolver.AIConnector.Ollama;
@@ -99,6 +100,16 @@ builder.Services.AddHttpClient("ollama", configureClient =>
        .AddAsKeyed()
        .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<OllamaConnector>(serviceProvider));
 
+builder.Services.AddHttpClient("deepseek", configureClient =>
+       {
+         configureClient.BaseAddress = new Uri("https://api.deepseek.com");
+         configureClient.DefaultRequestHeaders.Add("Accept", "application/json");
+         configureClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", builder.Configuration.GetValue<string>("AiAgent:token"));
+         configureClient.Timeout = TimeSpan.FromMinutes(10); //To allow retries to go through
+       })
+       .AddAsKeyed()
+       .AddPolicyHandler((serviceProvider, _) => PolicyExtensions.GetRetryPolicy<DeepSeekConnector>(serviceProvider));
+
 builder.Services.AddHttpClient("sonarqube", configureClient =>
        {
          configureClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("CodeAnalysis:serverUrl") ?? string.Empty);
@@ -120,6 +131,7 @@ builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.Gemin
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
        .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.DevstralSmall)
        .AddKeyedTransient<IAIConnector, OllamaConnector>(AIModels.Phi4)
+       .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekChat)
        .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku3);
 
 // Code Analysis Connectors

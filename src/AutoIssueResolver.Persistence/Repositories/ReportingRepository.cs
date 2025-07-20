@@ -21,6 +21,7 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
       Id = metadata.CorrelationId,
       Branch = metadata.BranchName ?? string.Empty,
       StartTimeUtc = DateTime.UtcNow,
+      Model = metadata.ModelName ?? string.Empty,
     };
 
     await reportingContext.ApplicationRuns.AddAsync(applicationRun, token);

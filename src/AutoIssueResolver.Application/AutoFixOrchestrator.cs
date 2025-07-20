@@ -259,6 +259,7 @@ public class AutoFixOrchestrator(
   {
     var branchName = $"auto-fix/{aiConfiguration.Value.Model.GetModelVendor().Replace('(', '_').Replace(')', '_').Replace(' ', '-')}/{aiConfiguration.Value.Model.GetModelName().Replace(':', '-')}/{metadata.CorrelationId}-auto-fix";
     metadata.BranchName = branchName;
+    metadata.ModelName = aiConfiguration.Value.Model.GetModelName();
     logger.LogDebug("Prepared metadata with branch name: {BranchName}", branchName);
   }
 

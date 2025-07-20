@@ -17,5 +17,10 @@ public interface IRunMetadata
   /// </summary>
   string? BranchName { get; set; }
 
+  /// <summary>
+  /// Name of the model used for the run, if available
+  /// </summary>
+  string? ModelName { get; set; }
+
   #endregion
 }

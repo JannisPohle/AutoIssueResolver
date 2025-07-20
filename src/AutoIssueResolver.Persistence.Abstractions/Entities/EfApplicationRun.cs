@@ -18,6 +18,11 @@ public class EfApplicationRun
   public required string Branch { get; set; }
 
   /// <summary>
+  /// Model used for the run
+  /// </summary>
+  public required string Model { get; set; }
+
+  /// <summary>
   ///   Requests associated with the run.
   /// </summary>
   public virtual List<EfRequest>? Requests { get; set; }

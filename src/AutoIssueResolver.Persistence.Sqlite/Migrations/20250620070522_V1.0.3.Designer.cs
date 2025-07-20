@@ -3,6 +3,7 @@ using System;
 using AutoIssueResolver.Persistence.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoIssueResolver.Persistence.Sqlite.Migrations
 {
     [DbContext(typeof(ReportingContextSqlite))]
-    partial class ReportingContextSqliteModelSnapshot : ModelSnapshot
+    [Migration("20250620070522_V1.0.3")]
+    partial class V103
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

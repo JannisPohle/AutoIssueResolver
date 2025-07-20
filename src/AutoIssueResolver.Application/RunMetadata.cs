@@ -13,7 +13,10 @@ public class RunMetadata: IRunMetadata
   public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
 
   /// <inheritdoc />
-  public string BranchName { get; set; } = string.Empty;
+  public string? BranchName { get; set; } = string.Empty;
+
+  /// <inheritdoc />
+  public string? ModelName { get; set; } = string.Empty;
 
   #endregion
 }

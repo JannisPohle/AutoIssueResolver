@@ -311,11 +311,8 @@ public class AutoFixOrchestrator(
   {
     try
     {
-      logger.LogDebug("Cloning repository");
+      logger.LogDebug("Initializing repository");
       await _git.CloneRepository(stoppingToken);
-
-      logger.LogDebug("Checking out branch");
-      await _git.CheckoutBranch(stoppingToken);
 
       logger.LogDebug("Creating new branch: {BranchName}", metadata.BranchName);
       await _git.CreateBranch(metadata.BranchName!, stoppingToken);

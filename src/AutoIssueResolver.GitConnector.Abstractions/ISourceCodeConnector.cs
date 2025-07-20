@@ -9,17 +9,10 @@ public interface ISourceCodeConnector
 {
   #region Methods
 
-  //TODO maybe combine some methods into a single, more general method (e.g. combine CloneRepository and CheckoutBranch into something like InitializeCodeRepository)
-
   /// <summary>
   ///   Clones the repository.
   /// </summary>
   Task CloneRepository(CancellationToken cancellationToken = default);
-
-  /// <summary>
-  ///   Checks out the specified branch.
-  /// </summary>
-  Task CheckoutBranch(CancellationToken cancellationToken = default);
 
   /// <summary>
   ///   Creates a new branch.

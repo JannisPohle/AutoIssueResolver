@@ -51,23 +51,6 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
   }
 
   /// <inheritdoc />
-  public async Task CheckoutBranch(CancellationToken cancellationToken = default)
-  {
-    logger.LogInformation("Checking out branch {Branch}", configuration.Value.Branch);
-    using var repo = new Repository(LocalPath);
-    var branch = repo.Branches[configuration.Value.Branch];
-
-    if (branch == null)
-    {
-      logger.LogError("Branch {Branch} does not exist.", configuration.Value.Branch);
-      throw new InvalidOperationException($"Branch {configuration.Value.Branch} does not exist.");
-    }
-
-    Commands.Checkout(repo, branch);
-    logger.LogInformation("Checked out branch {Branch}", configuration.Value.Branch);
-  }
-
-  /// <inheritdoc />
   public async Task CreateBranch(string branchName, CancellationToken cancellationToken = default)
   {
     logger.LogInformation("Creating and checking out new branch {BranchName}", branchName);

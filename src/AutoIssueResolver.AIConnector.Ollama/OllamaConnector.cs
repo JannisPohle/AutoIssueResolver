@@ -21,12 +21,6 @@ public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentCo
 
   protected override List<AIModels> SupportedModels { get; } = [AIModels.Phi4,];
 
-  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    // Caching not required for local models
-    return Task.CompletedTask;
-  }
-
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var request = new Request(configuration.Value.Model.GetModelName(), await PreparePromptText(prompt, cancellationToken), SYSTEM_PROMPT, JsonNode.Parse(ResponseSchemaWithAdditionalProperties));

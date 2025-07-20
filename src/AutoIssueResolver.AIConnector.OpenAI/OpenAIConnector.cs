@@ -76,10 +76,4 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
     sb.AppendLine();
     return FormatFilesForPromptText(files, sb).ToString();
   }
-
-  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    // OpenAI API does not support explicit caching
-    return Task.CompletedTask;
-  }
 }

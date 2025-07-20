@@ -130,8 +130,6 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     return Task.FromResult(false);
   }
 
-  public abstract Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default);
-
   public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
   {
     logger.LogInformation("Getting response for prompt...");

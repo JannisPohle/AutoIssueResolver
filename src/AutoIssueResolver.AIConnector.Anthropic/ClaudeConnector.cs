@@ -24,12 +24,6 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
 
   protected override List<AIModels> SupportedModels { get; } = [AIModels.ClaudeHaiku3,];
 
-  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    // Caching is possible, but only makes sense if caches are reused multiple times
-    return Task.CompletedTask;
-  }
-
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var request = new Request(configuration.Value.Model.GetModelName(), [new Message(await PreparePromptText(prompt, cancellationToken)), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [new SystemPrompt(SYSTEM_PROMPT), new SystemPrompt(GetResponseFormatAsSystemMessage())], MAX_OUTPUT_TOKENS);

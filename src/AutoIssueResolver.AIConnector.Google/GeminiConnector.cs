@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
+using System.Text;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
@@ -9,7 +9,6 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Google.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.Application.Abstractions;
 using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
@@ -25,10 +24,9 @@ namespace AutoIssueResolver.AIConnector.Google;
 public class GeminiConnector(
   [FromKeyedServices("google")] HttpClient httpClient,
   IOptions<AiAgentConfiguration> configuration,
-  IRunMetadata metadata,
   ISourceCodeConnector sourceCodeConnector,
   IReportingRepository reportingRepository,
-  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector), IAIConnector
+  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
 {
   #region Static
 
@@ -37,54 +35,16 @@ public class GeminiConnector(
   private const string API_PATH_CHAT = $"v1beta/models/{PLACEHOLDER_MODEL_NAME}:generateContent";
   private const string API_PATH_CACHE = "v1beta/cachedContents";
 
-  private static readonly Dictionary<string, string?> _cacheMetadata = new();
-
   #endregion
 
   protected override List<AIModels> SupportedModels { get; } = [AIModels.GeminiFlashLite,];
 
   #region Methods
 
-  /// <inheritdoc />
-  public override async Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    var missingCaches = rules.Except(_cacheMetadata.Keys).ToList();
-
-    if (missingCaches.Count == 0)
-    {
-      logger.LogDebug("Caches already exist");
-      return;
-    }
-
-    foreach (var ruleId in rules)
-    {
-      try
-      {
-        logger.LogInformation("Setting up Gemini cache for rule {RuleId}...", ruleId);
-        var cache = new CachedContent(await CreateCacheContent(ruleId), configuration.Value.Model, "300s", CreateSystemPrompt(), "AutoIssueResolver Cache");
-
-        var cacheName = await CreateCache(cache, cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(cacheName))
-        {
-          _cacheMetadata.Add(ruleId, cacheName);
-        }
-
-        logger.LogInformation("Gemini cache setup for rule {RuleId} complete. CacheName: {CacheName}", ruleId, cacheName);
-      }
-      catch (Exception e)
-      {
-        logger.LogError(e, "Unknown error occured while setting up caching for rule {RuleId}", ruleId);
-      }
-    }
-  }
-
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var jsonSchema = ResponseSchema;
-    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema), MAX_OUTPUT_TOKENS));
-
-    await AddCachedContent(request, prompt.RuleId);
+    var request = new ChatRequest([new Content([new TextPart(await PreparePromptText(prompt, cancellationToken)),]),], SystemInstruction: CreateSystemPrompt(), GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema), MAX_OUTPUT_TOKENS));
 
     return request;
   }
@@ -124,21 +84,6 @@ public class GeminiConnector(
     return new AiResponse(responseContent, usageMetadata ?? new UsageMetadata(0, 0, 0, 0, 0));
   }
 
-  private async Task AddCachedContent(ChatRequest request, string ruleId)
-  {
-    if (_cacheMetadata.TryGetValue(ruleId, out var cacheName) && !string.IsNullOrWhiteSpace(cacheName))
-    {
-      logger.LogDebug("Adding cached content reference to Gemini request: {CacheName}", cacheName);
-      request.CachedContent = cacheName;
-    }
-    else
-    {
-      logger.LogDebug("No cache available, adding full cache content to Gemini request.");
-      var cacheContent = await CreateCacheContent(ruleId);
-      request.Contents.AddRange(cacheContent);
-      request.SystemInstruction ??= CreateSystemPrompt();
-    }
-  }
 
   private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
   {
@@ -201,17 +146,16 @@ public class GeminiConnector(
     ]);
   }
 
-  private async Task<List<Content>> CreateCacheContent(string? ruleId = null)
+  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
   {
-    logger.LogDebug("Fetching all source files for Gemini cache content.");
-    var files = await sourceCodeConnector.GetAllFiles(folderFilter: ruleId, cancellationToken: CancellationToken.None);
+    var files = await GetFileContents(prompt, cancellationToken);
 
-    var parts = files.Select(file => new InlineDataPart(new InlineData("text/plain", JsonSerializer.Serialize(file, JsonSerializerOptions.Web)))).Cast<Part>().ToList();
+    var sb = new StringBuilder();
 
-    var content = new Content(parts);
-
-    logger.LogDebug("Created Gemini cache content with {FileCount} files.", files.Count);
-    return [content,];
+    sb.AppendLine(prompt.PromptText);
+    sb.AppendLine();
+    sb.AppendLine();
+    return FormatFilesForPromptText(files, sb).ToString();
   }
 
   #endregion

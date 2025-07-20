@@ -20,12 +20,6 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
   private const string API_PATH_CHAT = "chat/completions";
   protected override List<AIModels> SupportedModels { get; } = [AIModels.DeepSeekChat,];
 
-  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    // There is no explicit caching
-    return Task.CompletedTask;
-  }
-
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var request = new Request(

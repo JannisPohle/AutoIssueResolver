@@ -22,12 +22,6 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
 
   protected override List<AIModels> SupportedModels { get; } = [AIModels.DevstralSmall,];
 
-  public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)
-  {
-    // Mistral does not support explicit caching.
-    return Task.CompletedTask;
-  }
-
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var request = new Request(configuration.Value.Model.GetModelName(), [new Message("system", SYSTEM_PROMPT), new Message("user", await PreparePromptText(prompt, cancellationToken))], new ResponseFormat(new JsonSchema(JsonNode.Parse(ResponseSchemaWithAdditionalProperties), "code_replacements")),

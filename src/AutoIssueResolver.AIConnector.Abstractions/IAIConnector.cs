@@ -19,10 +19,5 @@ public interface IAIConnector
   /// </summary>
   Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default);
 
-  /// <summary>
-  ///   Sets up caching for the connector.
-  /// </summary>
-  Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default);
-
   #endregion
 }

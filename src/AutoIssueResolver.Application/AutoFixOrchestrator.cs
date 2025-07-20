@@ -72,10 +72,6 @@ public class AutoFixOrchestrator(
       logger.LogDebug("Retrieving issues from code analysis");
       (var issues, result) = await GetIssues(stoppingToken);
 
-      logger.LogDebug("Setting up AI connector caching");
-      await _aiConnector.SetupCaching(issues.Select(i => i.RuleIdentifier.ShortIdentifier ?? string.Empty).ToList(), stoppingToken);
-
-
       if (!result.CanContinue)
       {
         logger.LogError("Failed to retrieve issues, stopping application");

@@ -7,8 +7,6 @@ using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 
 namespace AutoIssueResolver.AIConnector.Google.Models;
 
-//TODO - Add file with shared models for request and response
-
 /// <summary>
 ///   Represents a chat request to the Google AI connector.
 /// </summary>

@@ -19,6 +19,8 @@ namespace AutoIssueResolver.AIConnector.Anthropic;
 public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, [FromKeyedServices("anthropic")] HttpClient httpClient, ISourceCodeConnector sourceCodeConnector): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
 {
   private const string API_PATH_MESSAGES = "v1/messages";
+  //To force Claude to actually return the response in the expected format, we need to prefill i'ts response with the start of the json
+  private const string ASSISTANT_MESSAGE_PREFIX = "{ \"replacements\":[{\"filePath\": \"";
 
   protected override List<AIModels> SupportedModels { get; } = [AIModels.ClaudeHaiku3,];
 
@@ -30,7 +32,7 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(await PreparePromptText(prompt, cancellationToken)), ], SYSTEM_PROMPT, MAX_OUTPUT_TOKENS);
+    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(await PreparePromptText(prompt, cancellationToken)), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [new SystemPrompt(SYSTEM_PROMPT), new SystemPrompt(GetResponseFormatAsSystemMessage())], MAX_OUTPUT_TOKENS);
 
     return request;
   }
@@ -65,8 +67,27 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
       throw new UnsuccessfulResultException("Anthropic response content is empty", true) { UsageMetadata = usageMetadata, };
     }
 
+    if (!responseContent.StartsWith(ASSISTANT_MESSAGE_PREFIX))
+    {
+      responseContent = ASSISTANT_MESSAGE_PREFIX + responseContent;
+    }
+
     return new AiResponse(responseContent, usageMetadata);
   }
+
+  private static string GetResponseFormatAsSystemMessage()
+  {
+    var sb = new StringBuilder();
+
+    sb.AppendLine("# Output format");
+    sb.AppendLine("Respond in json format with the following schema:");
+    sb.AppendLine("```json");
+    sb.AppendLine(ResponseSchema);
+    sb.AppendLine("```");
+
+    return sb.ToString();
+  }
+
 
   private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
   {
@@ -76,11 +97,6 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
 
     sb.AppendLine(prompt.PromptText);
     sb.AppendLine();
-    sb.AppendLine("# Output format");
-    sb.AppendLine("Respond in json format with the following schema:");
-    sb.AppendLine("```json");
-    sb.AppendLine(ResponseSchema);
-    sb.AppendLine("```");
     sb.AppendLine();
     sb.AppendLine("# Files");
     foreach (var file in files)

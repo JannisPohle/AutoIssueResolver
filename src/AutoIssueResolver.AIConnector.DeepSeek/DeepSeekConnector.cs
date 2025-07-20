@@ -99,15 +99,6 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
     sb.AppendLine(prompt.PromptText);
     sb.AppendLine();
     sb.AppendLine();
-    sb.AppendLine("# Files");
-    foreach (var file in files)
-    {
-      sb.AppendLine($"## File Path: {file.FilePath}");
-      sb.AppendLine("Content:");
-      sb.AppendLine("```");
-      sb.AppendLine(file.FileContent);
-      sb.AppendLine("```");
-    }
-    return sb.ToString();
+    return FormatFilesForPromptText(files, sb).ToString();
   }
 }

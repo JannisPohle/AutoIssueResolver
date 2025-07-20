@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
@@ -19,10 +20,14 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 {
   #region Static
 
-  protected const string SYSTEM_PROMPT = "You are a helpful AI assistant that helps to fix code issues. You will receive a description for a code smell that should be fixed in a specific class. "
-                                         + "The response should contain the complete code for the files that should be changed. "
-                                         + "Use the provided file paths in the responses to identify the files. "
-                                         + "Do not change anything else in the code, just fix the issues that are described in the prompt. Do not add any comments, explanations or unnecessary whitespace to the code.";
+  protected const string SYSTEM_PROMPT =
+    "You are a Software Developer tasked with fixing Code Smells. You will receive a description for a code smell that should be fixed in a specific class, as well as the content of other possibly relevant classes. "
+    + "Here are some rules that you should follow when fixing the code smell:\n"
+    + "1. Respond only in the provided JSON format"
+    + "2. Do not change anything else in the code, just fix the issue that is described in the request. Do not add any comments, explanations or unnecessary whitespace to the code. Do not change the formatting of the code."
+    + "3. Use the provided file paths in the responses to identify the files."
+    + "4. The response should contain the *complete* code for the files that should be changed."
+    + "5. Ensure that the code is still valid after your changes and compiles without errors. Do not change the code in a way that would break the compilation or introduce new issues.";
 
   protected const int MAX_OUTPUT_TOKENS = 2500;
 
@@ -207,6 +212,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     }
     catch (Exception e)
     {
+      //TODO we could try to cleanup the response text slightly (e.g. try to detect additional text before or after the json object, try to escape newlines (especially for Anthropic responses), etc.)
       logger.LogError(e, "Failed to parse replacement response from API.");
       throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
     }
@@ -235,6 +241,25 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     logger.LogDebug("Found {FileCount} files.", files.Count);
 
     return files;
+  }
+
+  protected StringBuilder FormatFilesForPromptText(List<SourceFile> files, StringBuilder builder)
+  {
+    builder ??= new StringBuilder();
+
+    builder.AppendLine("# Files");
+    builder.AppendLine();
+
+    foreach (var file in files)
+    {
+      builder.AppendLine($"## File Path: {file.FilePath}");
+      builder.AppendLine("Content:");
+      builder.AppendLine("```");
+      builder.AppendLine(file.FileContent);
+      builder.AppendLine("```");
+    }
+
+    return builder;
   }
 
   #endregion

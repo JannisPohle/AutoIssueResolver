@@ -163,22 +163,26 @@ public class AutoFixOrchestrator(
     }
   }
 
-  //TODO introduce CoT prompt
-  //TODO optimize prompt for caching (ensure variable content is placed at the end)
-  //TODO add programming language to the prompt
   private async Task<Prompt> CreatePrompt(Issue issue, Rule rule)
   {
     logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);
 
     logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
     return new Prompt($$"""
-                        You are a code assistant. Your task is to fix issues in code based on static code analysis.
-
+                        # Approach
+                        To fix the code smell, please follow these steps:
+                        1. **Understand the Code Smell**: Read the description of the code smell to understand what it is and why it is considered a problem.
+                        2. **Analyze the Code**: Look at the provided code to identify where the code smell occurs.
+                        3. **Propose a Fix**: Suggest a code change that addresses the code smell while maintaining the original functionality of the code.
+                        
+                        # Code Smell Details
+                        
+                        ** Programming Language**: C#
                         **Analysis Rule Key**: {{rule.RuleId}}
                         **Rule Title**: {{rule.Title}}
                         **File Path**: {{issue.FilePath}}
                         **Affected Lines**: {{issue.Range.StartLine}}-{{issue.Range.EndLine}}
-                        **Issue Description**: {{rule.Description}}
+                        **Code Smell Description**: {{rule.Description}}
                         """, rule.ShortIdentifier ?? string.Empty);
   }
 

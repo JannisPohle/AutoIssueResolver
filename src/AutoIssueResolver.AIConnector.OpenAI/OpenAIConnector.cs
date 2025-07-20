@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions;
@@ -68,9 +69,12 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   {
     var files = await GetFileContents(prompt, cancellationToken);
 
-    var finalPrompt = $"# Files{Environment.NewLine}{JsonSerializer.Serialize(files, JsonSerializerOptions.Web)}{Environment.NewLine}# Prompt{Environment.NewLine}{prompt.PromptText}";
+    var sb = new StringBuilder();
 
-    return finalPrompt;
+    sb.AppendLine(prompt.PromptText);
+    sb.AppendLine();
+    sb.AppendLine();
+    return FormatFilesForPromptText(files, sb).ToString();
   }
 
   public override Task SetupCaching(List<string> rules, CancellationToken cancellationToken = default)

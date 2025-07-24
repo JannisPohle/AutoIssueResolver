@@ -165,23 +165,16 @@ public class AutoFixOrchestrator(
     logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);
 
     logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
-    //TODO move prompt template to Prompts class
-    return new Prompt($$"""
-                        # Approach
-                        To fix the code smell, please follow these steps:
-                        1. **Understand the Code Smell**: Read the description of the code smell to understand what it is and why it is considered a problem.
-                        2. **Analyze the Code**: Look at the provided code to identify where the code smell occurs.
-                        3. **Propose a Fix**: Suggest a code change that addresses the code smell while maintaining the original functionality of the code.
-                        
-                        # Code Smell Details
-                        
-                        **Programming Language**: C#
-                        **Analysis Rule Key**: {{rule.RuleId}}
-                        **Rule Title**: {{rule.Title}}
-                        **File Path**: {{issue.FilePath}}
-                        **Affected Lines**: {{issue.Range.StartLine}}-{{issue.Range.EndLine}}
-                        **Code Smell Description**: {{rule.Description}}
-                        """, rule.ShortIdentifier ?? string.Empty, new SystemPrompt(Prompts.SYSTEM_PROMPT), new ResponseSchema(Prompts.RESPONSE_SCHEMA_TEMPLATE));
+
+    var promptText = Prompts.PROMPT_TEMPLATE.Replace(Prompts.RULE_ID_PLACEHOLDER, rule.RuleId)
+                            .Replace(Prompts.ISSUE_FILE_PATH_PLACEHOLDER, issue.FilePath)
+                            .Replace(Prompts.ISSUE_DESCRIPTION_PLACEHOLDER, rule.Description)
+                            .Replace(Prompts.RULE_TITLE_PLACEHOLDER, rule.Title)
+                            .Replace(Prompts.ISSUE_RANGE_END_LINE_PLACEHOLDER, issue.Range.EndLine.ToString())
+                            .Replace(Prompts.ISSUE_RANGE_START_LINE_PLACEHOLDER, issue.Range.StartLine.ToString())
+                            .Replace(Prompts.PROGRAMMING_LANGUAGE_PLACEHOLDER, "C#");
+
+    return new Prompt(promptText, rule.ShortIdentifier ?? string.Empty, new SystemPrompt(Prompts.SYSTEM_PROMPT), new ResponseSchema(Prompts.RESPONSE_SCHEMA_TEMPLATE));
   }
 
   private async Task ReplaceFileContents(ReplacementResponse? replacements, Issue issue)

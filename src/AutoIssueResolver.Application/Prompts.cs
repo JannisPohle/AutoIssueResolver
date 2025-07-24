@@ -7,6 +7,14 @@ namespace AutoIssueResolver.Application;
 /// </summary>
 public static class Prompts
 {
+  public const string RULE_ID_PLACEHOLDER = "{{RULE_ID}}";
+  public const string RULE_TITLE_PLACEHOLDER = "{{RULE_TITLE}}";
+  public const string ISSUE_FILE_PATH_PLACEHOLDER = "{{ISSUE_FILE_PATH}}";
+  public const string ISSUE_RANGE_START_LINE_PLACEHOLDER = "{{ISSUE_RANGE_START_LINE}}";
+  public const string ISSUE_RANGE_END_LINE_PLACEHOLDER = "{{ISSUE_RANGE_END_LINE}}";
+  public const string ISSUE_DESCRIPTION_PLACEHOLDER = "{{ISSUE_DESCRIPTION}}";
+  public const string PROGRAMMING_LANGUAGE_PLACEHOLDER = "{{PROGRAMMING_LANGUAGE}}";
+
   /// <summary>
   /// Contains the default response schema, containing a placeholder for the "additionalProperties" field.
   /// </summary>
@@ -54,4 +62,23 @@ public static class Prompts
     + "3. Use the provided file paths in the responses to identify the files.\n"
     + "4. The response should contain the *complete* code for the files that should be changed.\n"
     + "5. Ensure that the code is still valid after your changes and compiles without errors. Do not change the code in a way that would break the compilation or introduce new issues.";
+
+  public const string PROMPT_TEMPLATE = $$"""
+                                          # Approach
+                                          To fix the code smell, please follow these steps:
+                                          1. **Understand the Code Smell**: Read the description of the code smell to understand what it is and why it is considered a problem.
+                                          2. **Analyze the Code**: Look at the provided code to identify where the code smell occurs.
+                                          3. **Propose a Fix**: Suggest a code change that addresses the code smell while maintaining the original functionality of the code.
+
+                                          # Code Smell Details
+
+                                          **Programming Language**: {{PROGRAMMING_LANGUAGE_PLACEHOLDER}}
+                                          **Analysis Rule Key**: {{RULE_ID_PLACEHOLDER}}
+                                          **Rule Title**: {{RULE_TITLE_PLACEHOLDER}}
+                                          **File Path**: {{ISSUE_FILE_PATH_PLACEHOLDER}}
+                                          **Affected Lines**: {{ISSUE_RANGE_START_LINE_PLACEHOLDER}}-{{ISSUE_RANGE_END_LINE_PLACEHOLDER}}
+
+                                          ## Code Smell Description
+                                           {{ISSUE_DESCRIPTION_PLACEHOLDER}}
+                                          """;
 }

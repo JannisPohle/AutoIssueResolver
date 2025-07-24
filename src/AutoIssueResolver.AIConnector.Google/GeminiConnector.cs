@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -10,7 +9,6 @@ using AutoIssueResolver.AIConnector.Google.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 using AutoIssueResolver.GitConnector.Abstractions;
-using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -33,7 +31,6 @@ public class GeminiConnector(
   private const string PLACEHOLDER_MODEL_NAME = "{{MODEL}}";
 
   private const string API_PATH_CHAT = $"v1beta/models/{PLACEHOLDER_MODEL_NAME}:generateContent";
-  private const string API_PATH_CACHE = "v1beta/cachedContents";
 
   #endregion
 
@@ -82,53 +79,6 @@ public class GeminiConnector(
     }
 
     return new AiResponse(responseContent, usageMetadata ?? new UsageMetadata(0, 0, 0, 0, 0));
-  }
-
-
-  private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
-  {
-    var requestReference = await reportingRepository.InitializeRequest(token: cancellationToken);
-    UsageMetadata? usageMetadata = null;
-
-    try
-    {
-      logger.LogDebug("Sending cache creation request to Gemini API: {Url}", CreateUrl(API_PATH_CACHE));
-      var response = await httpClient.PostAsJsonAsync(CreateUrl(API_PATH_CACHE), cachedContent, cancellationToken);
-
-      if (!response.IsSuccessStatusCode)
-      {
-        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (response.StatusCode != HttpStatusCode.BadRequest)
-        {
-          logger.LogWarning("Failed to create cache in Gemini: {ReasonPhrase} - {Content}. Cached content will be added to the individual requests", response.ReasonPhrase, errorContent);
-
-          return null;
-        }
-
-        //Assume, that there is just not enough content to cache, so we just return null
-        logger.LogWarning("Failed to create cache in Gemini, assuming that the cached content was too small. Cached content will be added to individual requests: {ReasonPhrase} - {Content}", response.ReasonPhrase,
-                          errorContent);
-
-        return null;
-      }
-
-      logger.LogDebug("Reading cache creation response from Gemini API.");
-      var cachedContentResponse = await response.Content.ReadFromJsonAsync<CachedContentResponse>(cancellationToken);
-      usageMetadata = cachedContentResponse?.UsageMetadata;
-
-      logger.LogInformation("Cache created in Gemini: {CacheName}", cachedContentResponse?.Name);
-
-      logger.LogDebug("Ending reporting request for Gemini cache creation.");
-      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Succeeded, usageMetadata?.TotalTokenCount ?? 0, token: cancellationToken);
-
-      return cachedContentResponse?.Name;
-    }
-    catch (Exception ex)
-    {
-      logger.LogError(ex, "Setting up cache for Gemini connector failed. Request will be marked as failed. Request reference: {RequestReferenceId}", requestReference.Id);
-      await reportingRepository.EndRequest(requestReference.Id, EfRequestStatus.Failed, token: cancellationToken);
-      throw;
-    }
   }
 
   private string CreateUrl(string relativeUrl)

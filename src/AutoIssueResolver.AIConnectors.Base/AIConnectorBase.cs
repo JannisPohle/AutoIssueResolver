@@ -22,11 +22,11 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
   protected const string SYSTEM_PROMPT =
     "You are a Software Developer tasked with fixing Code Smells. You will receive a description for a code smell that should be fixed in a specific class, as well as the content of other possibly relevant classes. "
-    + "Here are some rules that you should follow when fixing the code smell:\n"
-    + "1. Respond only in the provided JSON format"
-    + "2. Do not change anything else in the code, just fix the issue that is described in the request. Do not add any comments, explanations or unnecessary whitespace to the code. Do not change the formatting of the code."
-    + "3. Use the provided file paths in the responses to identify the files."
-    + "4. The response should contain the *complete* code for the files that should be changed."
+    + "Here are some rules that must be followed when fixing the code smell:\n"
+    + "1. Respond only in the provided JSON format\n"
+    + "2. Do not change anything else in the code, just fix the issue that is described in the request. Do not add any comments, explanations or unnecessary whitespace to the code. Do not change the formatting of the code.\n"
+    + "3. Use the provided file paths in the responses to identify the files.\n"
+    + "4. The response should contain the *complete* code for the files that should be changed.\n"
     + "5. Ensure that the code is still valid after your changes and compiles without errors. Do not change the code in a way that would break the compilation or introduce new issues.";
 
   protected const int MAX_OUTPUT_TOKENS = 2500;

@@ -173,7 +173,7 @@ public class AutoFixOrchestrator(
                         
                         # Code Smell Details
                         
-                        ** Programming Language**: C#
+                        **Programming Language**: C#
                         **Analysis Rule Key**: {{rule.RuleId}}
                         **Rule Title**: {{rule.Title}}
                         **File Path**: {{issue.FilePath}}

@@ -11,14 +11,14 @@ namespace AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 public record UsageMetadata(int PromptTokenCount, int CachedContentTokenCount, int TotalTokenCount, int CandidatesTokenCount, int ThoughtsTokenCount)
 {
   /// <summary>
-  /// Gets the total number of tokens actually used in the request, which includes both request and response tokens (excluding cached tokens).
+  /// Gets the total number of tokens actually used in the request, which includes both request and response tokens (including cached tokens).
   /// </summary>
   public int ActualUsedTokens => ActualRequestTokenCount + ActualResponseTokenCount;
 
   /// <summary>
-  /// Gets the number of tokens used in the request, excluding cached content.
+  /// Gets the number of tokens used in the request, including cached content.
   /// </summary>
-  public int ActualRequestTokenCount => PromptTokenCount - CachedContentTokenCount;
+  public int ActualRequestTokenCount => PromptTokenCount;
 
   /// <summary>
   /// Gets the total number of tokens used for the response, including tokens for reasoning.

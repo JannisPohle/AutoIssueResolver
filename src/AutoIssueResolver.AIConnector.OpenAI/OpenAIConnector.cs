@@ -1,16 +1,11 @@
 ﻿using System.Net.Http.Json;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.OpenAI.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.Application.Abstractions.Models;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.AIConnector.OpenAI;
 
-public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices("openAI")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector), IAIConnector
+public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices("openAI")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   private const string API_PATH_RESPONSES = "v1/responses";
 
@@ -28,7 +23,7 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   {
     var schema = prompt.ResponseSchema != null ? new TextOptions(new Format("response_schema", JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties))) : null;
 
-    var request = new Request(await PreparePromptText(prompt, cancellationToken), configuration.Value.Model.GetModelName(), prompt.SystemPrompt?.SystemPromptText, schema, MAX_OUTPUT_TOKENS);
+    var request = new Request(prompt.PromptText, configuration.Value.Model.GetModelName(), prompt.SystemPrompt?.SystemPromptText, schema, MAX_OUTPUT_TOKENS);
 
     return request;
   }
@@ -65,17 +60,5 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
     }
 
     return new AiResponse(responseContent, usageMetadata);
-  }
-
-  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await GetFileContents(prompt, cancellationToken);
-
-    var sb = new StringBuilder();
-
-    sb.AppendLine(prompt.PromptText);
-    sb.AppendLine();
-    sb.AppendLine();
-    return FormatFilesForPromptText(files, sb).ToString();
   }
 }

@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
@@ -8,7 +7,6 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Google.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,9 +20,8 @@ namespace AutoIssueResolver.AIConnector.Google;
 public class GeminiConnector(
   [FromKeyedServices("google")] HttpClient httpClient,
   IOptions<AiAgentConfiguration> configuration,
-  ISourceCodeConnector sourceCodeConnector,
   IReportingRepository reportingRepository,
-  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
+  ILogger<GeminiConnector> logger): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   #region Static
 
@@ -43,7 +40,7 @@ public class GeminiConnector(
     var jsonSchema = prompt.ResponseSchema != null ? JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaText) : null;
     var responseType = prompt.ResponseSchema?.SchemaType == SchemaType.Json ? "application/json" : "text/plain";
     var systemPrompt = prompt.SystemPrompt != null ? CreateSystemPrompt(prompt.SystemPrompt.SystemPromptText) : null;
-    var request = new ChatRequest([new Content([new TextPart(await PreparePromptText(prompt, cancellationToken)),]),], SystemInstruction: systemPrompt, GenerationConfig: new GenerationConfiguration(responseType, jsonSchema, MAX_OUTPUT_TOKENS));
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], SystemInstruction: systemPrompt, GenerationConfig: new GenerationConfiguration(responseType, jsonSchema, MAX_OUTPUT_TOKENS));
 
     return request;
   }
@@ -96,18 +93,6 @@ public class GeminiConnector(
     return new Content([
       new TextPart(promptText),
     ]);
-  }
-
-  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await GetFileContents(prompt, cancellationToken);
-
-    var sb = new StringBuilder();
-
-    sb.AppendLine(prompt.PromptText);
-    sb.AppendLine();
-    sb.AppendLine();
-    return FormatFilesForPromptText(files, sb).ToString();
   }
 
   #endregion

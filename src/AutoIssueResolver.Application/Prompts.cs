@@ -14,6 +14,7 @@ public static class Prompts
   public const string ISSUE_RANGE_END_LINE_PLACEHOLDER = "{{ISSUE_RANGE_END_LINE}}";
   public const string ISSUE_DESCRIPTION_PLACEHOLDER = "{{ISSUE_DESCRIPTION}}";
   public const string PROGRAMMING_LANGUAGE_PLACEHOLDER = "{{PROGRAMMING_LANGUAGE}}";
+  public const string FILE_CONTENTS_PLACEHOLDER = "{{FILE_CONTENTS}}";
 
   /// <summary>
   /// Contains the default response schema, containing a placeholder for the "additionalProperties" field.
@@ -80,5 +81,9 @@ public static class Prompts
 
                                           ## Code Smell Description
                                            {{ISSUE_DESCRIPTION_PLACEHOLDER}}
+                                           
+                                           # File Contents
+                                           
+                                          {{FILE_CONTENTS_PLACEHOLDER}}
                                           """;
 }

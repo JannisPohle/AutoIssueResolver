@@ -1,5 +1,4 @@
 ﻿using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
@@ -7,7 +6,6 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Mistral.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +14,7 @@ using Response = AutoIssueResolver.AIConnector.Mistral.Models.Response;
 
 namespace AutoIssueResolver.AIConnector.Mistral;
 
-public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServices("mistral")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
+public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServices("mistral")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   private const string API_PATH_CHAT = "v1/chat/completions";
 
@@ -26,7 +24,7 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
   {
     var schema = prompt.ResponseSchema != null ? new ResponseFormat(new JsonSchema(JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties), "response_schema")) : null;
 
-    var request = new Request(configuration.Value.Model.GetModelName(), [new Message("user", await PreparePromptText(prompt, cancellationToken))], schema,
+    var request = new Request(configuration.Value.Model.GetModelName(), [new Message("user", prompt.PromptText)], schema,
                               MAX_OUTPUT_TOKENS);
 
     if (prompt.SystemPrompt != null)
@@ -72,17 +70,5 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
     }
 
     return new AiResponse(choice.Message.Content, usageMetadata);
-  }
-
-  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await GetFileContents(prompt, cancellationToken);
-
-    var sb = new StringBuilder();
-
-    sb.AppendLine(prompt.PromptText);
-    sb.AppendLine();
-    sb.AppendLine();
-    return FormatFilesForPromptText(files, sb).ToString();
   }
 }

@@ -1,5 +1,4 @@
 ﻿using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json.Nodes;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
@@ -7,7 +6,6 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.Ollama.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 namespace AutoIssueResolver.AIConnector.Ollama;
 
-public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, [FromKeyedServices("ollama")] HttpClient httpClient, ISourceCodeConnector sourceCodeConnector): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
+public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, [FromKeyedServices("ollama")] HttpClient httpClient): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   private const string API_PATH_GENERATE = "api/generate";
 
@@ -24,7 +22,7 @@ public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentCo
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
     var schema = prompt.ResponseSchema != null ? JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties) : null;
-    var request = new Request(configuration.Value.Model.GetModelName(), await PreparePromptText(prompt, cancellationToken), prompt.SystemPrompt?.SystemPromptText, schema);
+    var request = new Request(configuration.Value.Model.GetModelName(), prompt.PromptText, prompt.SystemPrompt?.SystemPromptText, schema);
 
     return request;
   }
@@ -59,17 +57,5 @@ public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentCo
     }
 
     return new AiResponse(responseContent, usageMetadata);
-  }
-
-  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await GetFileContents(prompt, cancellationToken);
-
-    var sb = new StringBuilder();
-
-    sb.AppendLine(prompt.PromptText);
-    sb.AppendLine();
-    sb.AppendLine();
-    return FormatFilesForPromptText(files, sb).ToString();
   }
 }

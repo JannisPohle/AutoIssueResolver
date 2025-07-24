@@ -1,3 +1,4 @@
+using System.Text;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
@@ -166,13 +167,16 @@ public class AutoFixOrchestrator(
 
     logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
 
+    var files = await GetFileContents(rule, CancellationToken.None);
+
     var promptText = Prompts.PROMPT_TEMPLATE.Replace(Prompts.RULE_ID_PLACEHOLDER, rule.RuleId)
                             .Replace(Prompts.ISSUE_FILE_PATH_PLACEHOLDER, issue.FilePath)
                             .Replace(Prompts.ISSUE_DESCRIPTION_PLACEHOLDER, rule.Description)
                             .Replace(Prompts.RULE_TITLE_PLACEHOLDER, rule.Title)
                             .Replace(Prompts.ISSUE_RANGE_END_LINE_PLACEHOLDER, issue.Range.EndLine.ToString())
                             .Replace(Prompts.ISSUE_RANGE_START_LINE_PLACEHOLDER, issue.Range.StartLine.ToString())
-                            .Replace(Prompts.PROGRAMMING_LANGUAGE_PLACEHOLDER, "C#");
+                            .Replace(Prompts.PROGRAMMING_LANGUAGE_PLACEHOLDER, "C#")
+                            .Replace(Prompts.FILE_CONTENTS_PLACEHOLDER, FormatFilesForPromptText(files));
 
     return new Prompt(promptText, rule.ShortIdentifier ?? string.Empty, new SystemPrompt(Prompts.SYSTEM_PROMPT), new ResponseSchema(Prompts.RESPONSE_SCHEMA_TEMPLATE));
   }
@@ -352,6 +356,38 @@ public class AutoFixOrchestrator(
 
     logger.LogDebug("Code Analysis connector resolved");
     return codeAnalysisConnector;
+  }
+
+  private async Task<List<SourceFile>> GetFileContents(Rule rule, CancellationToken cancellationToken)
+  {
+    var files = await _git.GetAllFiles(folderFilter: rule.RuleId, cancellationToken: cancellationToken);
+    if (files.Count == 0)
+    {
+      logger.LogWarning("No files found in the repository for rule {RuleId}.", rule.RuleId);
+      return [];
+    }
+
+    logger.LogDebug("Found {FileCount} files.", files.Count);
+
+    return files;
+  }
+
+  private static string FormatFilesForPromptText(List<SourceFile> files)
+  {
+    var builder = new StringBuilder();
+
+    foreach (var file in files)
+    {
+      builder.AppendLine($"## File Path: {file.FilePath}");
+      builder.AppendLine();
+      builder.AppendLine("**Content**:");
+      builder.AppendLine("```");
+      builder.AppendLine(file.FileContent);
+      builder.AppendLine("```");
+      builder.AppendLine();
+    }
+
+    return builder.ToString();
   }
 
   private void StopApplication(OperationResult result)

@@ -6,7 +6,6 @@ using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnector.DeepSeek.Models;
 using AutoIssueResolver.AIConnectors.Base;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,7 +14,7 @@ using Response = AutoIssueResolver.AIConnector.DeepSeek.Models.Response;
 
 namespace AutoIssueResolver.AIConnector.DeepSeek;
 
-public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServices("deepseek")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, ISourceCodeConnector sourceCodeConnector, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient, sourceCodeConnector)
+public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServices("deepseek")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   private const string API_PATH_CHAT = "chat/completions";
   protected override List<AIModels> SupportedModels { get; } = [AIModels.DeepSeekChat,];
@@ -24,7 +23,7 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
   {
     var request = new Request(
                               configuration.Value.Model.GetModelName(),
-                              [new Message(await PreparePromptText(prompt, cancellationToken))],
+                              [new Message(prompt.PromptText)],
                               new ResponseFormat(),
                               MAX_OUTPUT_TOKENS);
 
@@ -92,17 +91,5 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
     sb.AppendLine("```");
 
     return new Message(sb.ToString(), "system");
-  }
-
-  private async Task<string> PreparePromptText(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await GetFileContents(prompt, cancellationToken);
-
-    var sb = new StringBuilder();
-
-    sb.AppendLine(prompt.PromptText);
-    sb.AppendLine();
-    sb.AppendLine();
-    return FormatFilesForPromptText(files, sb).ToString();
   }
 }

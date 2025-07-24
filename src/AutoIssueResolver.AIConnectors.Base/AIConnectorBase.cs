@@ -1,12 +1,9 @@
 ﻿using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
-using AutoIssueResolver.Application.Abstractions.Models;
-using AutoIssueResolver.GitConnector.Abstractions;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
 using AutoIssueResolver.Persistence.Abstractions.Repositories;
 using Microsoft.Extensions.Logging;
@@ -16,7 +13,7 @@ using Polly.Retry;
 
 namespace AutoIssueResolver.AIConnectors.Base;
 
-public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, HttpClient httpClient, ISourceCodeConnector sourceCodeConnector): IAIConnector
+public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository, HttpClient httpClient): IAIConnector
 {
   #region Static
 
@@ -156,40 +153,6 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
   protected abstract string GetResponsesApiPath();
 
   protected abstract Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken);
-
-  //TODO move to auto fix orchestrator
-  protected async Task<List<SourceFile>> GetFileContents(Prompt prompt, CancellationToken cancellationToken)
-  {
-    var files = await sourceCodeConnector.GetAllFiles(folderFilter: prompt.RuleId, cancellationToken: cancellationToken);
-    if (files.Count == 0)
-    {
-      logger.LogWarning("No files found in the repository for rule {RuleId}.", prompt.RuleId);
-      return [];
-    }
-
-    logger.LogDebug("Found {FileCount} files.", files.Count);
-
-    return files;
-  }
-
-  protected StringBuilder FormatFilesForPromptText(List<SourceFile> files, StringBuilder builder)
-  {
-    builder ??= new StringBuilder();
-
-    builder.AppendLine("# Files");
-    builder.AppendLine();
-
-    foreach (var file in files)
-    {
-      builder.AppendLine($"## File Path: {file.FilePath}");
-      builder.AppendLine("Content:");
-      builder.AppendLine("```");
-      builder.AppendLine(file.FileContent);
-      builder.AppendLine("```");
-    }
-
-    return builder;
-  }
 
   private bool TryCleanupAIResponseAndDeserialize<T>(string responseText, out T? parsedResponse)
   {

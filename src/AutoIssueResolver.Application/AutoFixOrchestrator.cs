@@ -3,6 +3,7 @@ using AutoIssueResolver.AIConnector.Abstractions.Configuration;
 using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.Application.Abstractions;
+using AutoIssueResolver.Application.Abstractions.Models;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions.Configuration;
 using AutoIssueResolver.CodeAnalysisConnector.Abstractions.Models;
@@ -141,12 +142,12 @@ public class AutoFixOrchestrator(
       var prompt = await CreatePrompt(issue, rule);
 
       logger.LogDebug("Requesting AI response for issue {RuleId}", issue.RuleIdentifier);
-      var response = await _aiConnector.GetResponse(prompt, stoppingToken);
+      var response = await _aiConnector.GetResponse<ReplacementResponse>(prompt, stoppingToken);
 
       logger.LogDebug("AI response received for issue {RuleId}", issue.RuleIdentifier);
       logger.LogDebug("AI Response: {Response}", response);
 
-      await ReplaceFileContents(response.CodeReplacement, issue);
+      await ReplaceFileContents(response.ParsedResponse, issue);
 
       logger.LogDebug("Committing changes for issue {RuleId}", issue.RuleIdentifier);
       await _git.CommitChanges(GetCommitMessage(issue, rule), stoppingToken);
@@ -164,6 +165,7 @@ public class AutoFixOrchestrator(
     logger.LogDebug("Fetching file content for {FilePath}", issue.FilePath);
 
     logger.LogTrace("Creating prompt for rule {RuleId} and file {FilePath}", rule.RuleId, issue.FilePath);
+    //TODO move prompt template to Prompts class
     return new Prompt($$"""
                         # Approach
                         To fix the code smell, please follow these steps:
@@ -179,12 +181,18 @@ public class AutoFixOrchestrator(
                         **File Path**: {{issue.FilePath}}
                         **Affected Lines**: {{issue.Range.StartLine}}-{{issue.Range.EndLine}}
                         **Code Smell Description**: {{rule.Description}}
-                        """, rule.ShortIdentifier ?? string.Empty);
+                        """, rule.ShortIdentifier ?? string.Empty, new SystemPrompt(Prompts.SYSTEM_PROMPT), new ResponseSchema(Prompts.RESPONSE_SCHEMA_TEMPLATE));
   }
 
-  private async Task ReplaceFileContents(List<Replacement> replacements, Issue issue)
+  private async Task ReplaceFileContents(ReplacementResponse? replacements, Issue issue)
   {
-    foreach (var replacement in replacements)
+    if (replacements?.Replacements == null || replacements.Replacements.Count == 0)
+    {
+      logger.LogWarning("No replacements found for issue {RuleId} in {FilePath}", issue.RuleIdentifier, issue.FilePath);
+      return;
+    }
+
+    foreach (var replacement in replacements.Replacements)
     {
       try
       {

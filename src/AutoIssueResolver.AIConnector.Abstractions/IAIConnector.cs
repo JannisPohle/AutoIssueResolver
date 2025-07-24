@@ -17,7 +17,7 @@ public interface IAIConnector
   /// <summary>
   ///   Gets a response from the AI for the given prompt.
   /// </summary>
-  Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default);
+  Task<Response<T>> GetResponse<T>(Prompt prompt, CancellationToken cancellationToken = default);
 
   #endregion
 }

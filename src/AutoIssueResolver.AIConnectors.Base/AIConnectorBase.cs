@@ -20,93 +20,11 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 {
   #region Static
 
-  protected const string SYSTEM_PROMPT =
-    "You are a Software Developer tasked with fixing Code Smells. You will receive a description for a code smell that should be fixed in a specific class, as well as the content of other possibly relevant classes. "
-    + "Here are some rules that must be followed when fixing the code smell:\n"
-    + "1. Respond only in the provided JSON format\n"
-    + "2. Do not change anything else in the code, just fix the issue that is described in the request. Do not add any comments, explanations or unnecessary whitespace to the code. Do not change the formatting of the code.\n"
-    + "3. Use the provided file paths in the responses to identify the files.\n"
-    + "4. The response should contain the *complete* code for the files that should be changed.\n"
-    + "5. Ensure that the code is still valid after your changes and compiles without errors. Do not change the code in a way that would break the compilation or introduce new issues.";
-
   protected const int MAX_OUTPUT_TOKENS = 2500;
-
-  private const string ADDITIONAL_PROPERTIES = "\"additionalProperties\": false,";
-
-  private const string RESPONSE_SCHEMA = """
-                                         {
-                                           "title": "Replacements",
-                                           "description": "Contains a list of replacements that should be done in the code to fix the issue.",
-                                           "type": "object",
-                                           {{ADDITIONAL_PROPERTIES}}
-                                           "required": ["replacements"],
-                                           "properties": {
-                                             "replacements": {
-                                               "type": "array",
-                                               "description": "A list of code replacements that should be applied to fix the issue.",
-                                               {{ADDITIONAL_PROPERTIES}}
-                                               "items": {
-                                                  "type": "object",
-                                                  "description": "Replacement for a specific file, that should be applied to fix an issue.",
-                                                  "properties": {
-                                                    "newCode": {
-                                                      "type": "string",
-                                                      "description": "The updated code that should replace the old code to fix the issue. Should contain the complete code for the file that should be changed"
-                                                    },
-                                                    "filePath": {
-                                                      "type": "string",
-                                                      "description": "The path of the file that should be changed (relative to the repository root). This should be the same path as provided in the source code files in the cache."
-                                                    }
-                                                  },
-                                                  {{ADDITIONAL_PROPERTIES}}
-                                                  "required": ["newCode", "filePath"]
-                                               }
-                                             }
-                                           }
-                                         }
-                                         """;
-
-  private static readonly ResiliencePipeline<(Response, UsageMetadata)> _retryPolicy =
-    new ResiliencePipelineBuilder<(Response, UsageMetadata)>().AddRetry(new RetryStrategyOptions<(Response, UsageMetadata)>
-    {
-      ShouldHandle = new PredicateBuilder<(Response, UsageMetadata)>().Handle<UnsuccessfulResultException>(ex => ex.CanRetry),
-      BackoffType = DelayBackoffType.Constant,
-      UseJitter = true,
-      MaxRetryAttempts = 3,
-      Delay = TimeSpan.FromSeconds(5),
-      OnRetry = async arguments =>
-      {
-        var retryLogger = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<ILogger?>("logger"), null);
-        var retryReportingRepository = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<IReportingRepository?>("repository"), null);
-        var requestReference = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<EfRequest?>("request"), null);
-
-        var usageMetadata = (arguments.Outcome.Exception as UnsuccessfulResultException)?.UsageMetadata;
-
-        retryLogger?.LogInformation(arguments.Outcome.Exception, "(Retry {RetryCount}). Request to the AI failed: '{ErrorMessage}'. Retrying request to AI API after {WaitTime}. Usage Statistics: {UsageMetadata}",
-                                    arguments.AttemptNumber, arguments.Outcome.Exception?.Message, arguments.Duration, usageMetadata);
-
-        if (retryReportingRepository != null && requestReference != null)
-        {
-          await retryReportingRepository.IncrementRequestRetries(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
-                                                                 usageMetadata?.ActualResponseTokenCount ?? 0);
-          retryLogger?.LogDebug("Incremented retry counter for request {RequestId}.", requestReference.Id);
-        }
-      },
-    }).Build();
 
   #endregion
 
   #region Properties
-
-  /// <summary>
-  ///   Gets the default response json schema
-  /// </summary>
-  protected static string ResponseSchema => RESPONSE_SCHEMA.Replace("{{ADDITIONAL_PROPERTIES}}", "").ReplaceLineEndings();
-
-  /// <summary>
-  ///   Gets the response json schema with "additionalProperties" set to false (required e.g. for OpenAI)
-  /// </summary>
-  protected static string ResponseSchemaWithAdditionalProperties => RESPONSE_SCHEMA.Replace("{{ADDITIONAL_PROPERTIES}}", ADDITIONAL_PROPERTIES).ReplaceLineEndings();
 
   /// <summary>
   /// Gets a list of supported models by the current connector
@@ -130,7 +48,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     return Task.FromResult(false);
   }
 
-  public async Task<Response> GetResponse(Prompt prompt, CancellationToken cancellationToken = default)
+  public async Task<Response<T>> GetResponse<T>(Prompt prompt, CancellationToken cancellationToken = default)
   {
     logger.LogInformation("Getting response for prompt...");
 
@@ -153,7 +71,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
       context.Properties.Set(new ResiliencePropertyKey<IReportingRepository?>("repository"), reportingRepository);
       context.Properties.Set(new ResiliencePropertyKey<Prompt?>("prompt"), prompt);
 
-      (var response, usageMetadata) = await _retryPolicy.ExecuteAsync(async state => await GetAiResponseInternal(state.Properties.GetValue(new ResiliencePropertyKey<Prompt>("prompt"), new Prompt(string.Empty, string.Empty)), state.CancellationToken), context);
+      (var response, usageMetadata) = await GetRetryPolicy<T>().ExecuteAsync(async state => await GetAiResponseInternal<T>(state.Properties.GetValue(new ResiliencePropertyKey<Prompt>("prompt"), new Prompt(string.Empty, string.Empty)), state.CancellationToken), context);
 
       logger.LogDebug("Ending reporting request for OpenAI response.");
 
@@ -184,7 +102,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     }
   }
 
-  private async Task<(Response, UsageMetadata)> GetAiResponseInternal(Prompt prompt, CancellationToken cancellationToken)
+  private async Task<(Response<T>, UsageMetadata)> GetAiResponseInternal<T>(Prompt prompt, CancellationToken cancellationToken)
   {
     logger.LogDebug("Preparing content for API request.");
     var request = await CreateRequestObject(prompt, cancellationToken);
@@ -203,15 +121,15 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     logger.LogDebug("Reading response from API.");
     var aiResponse = await ParseResponse(response, cancellationToken);
 
-    ReplacementResponse? replacementResponse;
+    T? parsedResponse;
 
     try
     {
-      replacementResponse = JsonSerializer.Deserialize<ReplacementResponse>(aiResponse.ResponseText, JsonSerializerOptions.Web);
+      parsedResponse = JsonSerializer.Deserialize<T>(aiResponse.ResponseText, JsonSerializerOptions.Web);
     }
     catch (JsonException ex)
     {
-      if (TryCleanupAIResponseAndDeserialize(aiResponse.ResponseText, out replacementResponse))
+      if (TryCleanupAIResponseAndDeserialize<T>(aiResponse.ResponseText, out parsedResponse))
       {
         logger.LogDebug("Successfully cleaned up AI response and deserialized replacements.");
       }
@@ -227,10 +145,10 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
       throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
     }
 
-    logger.LogInformation("Received response from API with {ReplacementCount} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",
-                          replacementResponse?.Replacements.Count ?? 0, aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
+    logger.LogInformation("Received response from API and tried to deserialize to target type {ResponseType} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",
+                          typeof(T), aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
 
-    return (new Response(aiResponse.ResponseText, replacementResponse?.Replacements ?? []), aiResponse.UsageMetadata);
+    return (new Response<T>(aiResponse.ResponseText, parsedResponse), aiResponse.UsageMetadata);
   }
 
   protected abstract Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken);
@@ -239,6 +157,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
   protected abstract Task<AiResponse> ParseResponse(HttpResponseMessage response, CancellationToken cancellationToken);
 
+  //TODO move to auto fix orchestrator
   protected async Task<List<SourceFile>> GetFileContents(Prompt prompt, CancellationToken cancellationToken)
   {
     var files = await sourceCodeConnector.GetAllFiles(folderFilter: prompt.RuleId, cancellationToken: cancellationToken);
@@ -272,7 +191,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     return builder;
   }
 
-  private bool TryCleanupAIResponseAndDeserialize(string responseText, out ReplacementResponse? replacements)
+  private bool TryCleanupAIResponseAndDeserialize<T>(string responseText, out T? parsedResponse)
   {
     if (!responseText.StartsWith('{') && responseText.Contains('{'))
     {
@@ -295,9 +214,9 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     try
     {
       logger.LogDebug("Trying to deserialize the AI response text after cleanup: {ResponseText}", responseText);
-      replacements = JsonSerializer.Deserialize<ReplacementResponse>(responseText, JsonSerializerOptions.Web);
+      parsedResponse = JsonSerializer.Deserialize<T>(responseText, JsonSerializerOptions.Web);
 
-      if (replacements == null)
+      if (EqualityComparer<T>.Default.Equals(parsedResponse, default))
       {
         logger.LogDebug("Failed to deserialize AI response: {ResponseText}", responseText);
 
@@ -309,11 +228,39 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
     catch (JsonException ex)
     {
       logger.LogDebug(ex, "Failed to deserialize AI response: {ResponseText}", responseText);
-      replacements = null;
+      parsedResponse = default;
 
       return false;
     }
   }
+
+  private static ResiliencePipeline<(Response<T>, UsageMetadata)> GetRetryPolicy<T>() =>
+    new ResiliencePipelineBuilder<(Response<T>, UsageMetadata)>().AddRetry(new RetryStrategyOptions<(Response<T>, UsageMetadata)>
+    {
+      ShouldHandle = new PredicateBuilder<(Response<T>, UsageMetadata)>().Handle<UnsuccessfulResultException>(ex => ex.CanRetry),
+      BackoffType = DelayBackoffType.Constant,
+      UseJitter = true,
+      MaxRetryAttempts = 3,
+      Delay = TimeSpan.FromSeconds(5),
+      OnRetry = async arguments =>
+      {
+        var retryLogger = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<ILogger?>("logger"), null);
+        var retryReportingRepository = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<IReportingRepository?>("repository"), null);
+        var requestReference = arguments.Context.Properties.GetValue(new ResiliencePropertyKey<EfRequest?>("request"), null);
+
+        var usageMetadata = (arguments.Outcome.Exception as UnsuccessfulResultException)?.UsageMetadata;
+
+        retryLogger?.LogInformation(arguments.Outcome.Exception, "(Retry {RetryCount}). Request to the AI failed: '{ErrorMessage}'. Retrying request to AI API after {WaitTime}. Usage Statistics: {UsageMetadata}",
+                                    arguments.AttemptNumber, arguments.Outcome.Exception?.Message, arguments.Duration, usageMetadata);
+
+        if (retryReportingRepository != null && requestReference != null)
+        {
+          await retryReportingRepository.IncrementRequestRetries(requestReference.Id, usageMetadata?.TotalTokenCount ?? 0, usageMetadata?.CachedContentTokenCount ?? 0, usageMetadata?.ActualRequestTokenCount ?? 0,
+                                                                 usageMetadata?.ActualResponseTokenCount ?? 0);
+          retryLogger?.LogDebug("Incremented retry counter for request {RequestId}.", requestReference.Id);
+        }
+      },
+    }).Build();
 
   #endregion
 }

@@ -23,7 +23,8 @@ public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentCo
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var request = new Request(configuration.Value.Model.GetModelName(), await PreparePromptText(prompt, cancellationToken), SYSTEM_PROMPT, JsonNode.Parse(ResponseSchemaWithAdditionalProperties));
+    var schema = prompt.ResponseSchema != null ? JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties) : null;
+    var request = new Request(configuration.Value.Model.GetModelName(), await PreparePromptText(prompt, cancellationToken), prompt.SystemPrompt?.SystemPromptText, schema);
 
     return request;
   }

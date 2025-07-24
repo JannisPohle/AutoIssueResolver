@@ -24,9 +24,19 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
   {
     var request = new Request(
                               configuration.Value.Model.GetModelName(),
-                              [new Message(SYSTEM_PROMPT, "system"), GetResponseFormatAsSystemMessage(), new Message(await PreparePromptText(prompt, cancellationToken))],
+                              [new Message(await PreparePromptText(prompt, cancellationToken))],
                               new ResponseFormat(),
                               MAX_OUTPUT_TOKENS);
+
+    if (prompt.SystemPrompt != null)
+    {
+      request.Messages.Add(new Message(prompt.SystemPrompt.SystemPromptText, "system"));
+    }
+
+    if (prompt.ResponseSchema != null)
+    {
+      request.Messages.Add(GetResponseFormatAsSystemMessage(prompt.ResponseSchema.ResponseSchemaText));
+    }
 
     return request;
   }
@@ -71,14 +81,14 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
     return new AiResponse(responseContent, usageMetadata);
   }
 
-  private static Message GetResponseFormatAsSystemMessage()
+  private static Message GetResponseFormatAsSystemMessage(string responseSchema)
   {
     var sb = new StringBuilder();
 
     sb.AppendLine("# Output format");
     sb.AppendLine("Respond in json format with the following schema:");
     sb.AppendLine("```json");
-    sb.AppendLine(ResponseSchema);
+    sb.AppendLine(responseSchema);
     sb.AppendLine("```");
 
     return new Message(sb.ToString(), "system");

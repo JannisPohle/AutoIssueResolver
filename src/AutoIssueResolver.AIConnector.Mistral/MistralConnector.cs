@@ -24,8 +24,15 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var request = new Request(configuration.Value.Model.GetModelName(), [new Message("system", SYSTEM_PROMPT), new Message("user", await PreparePromptText(prompt, cancellationToken))], new ResponseFormat(new JsonSchema(JsonNode.Parse(ResponseSchemaWithAdditionalProperties), "code_replacements")),
+    var schema = prompt.ResponseSchema != null ? new ResponseFormat(new JsonSchema(JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties), "response_schema")) : null;
+
+    var request = new Request(configuration.Value.Model.GetModelName(), [new Message("user", await PreparePromptText(prompt, cancellationToken))], schema,
                               MAX_OUTPUT_TOKENS);
+
+    if (prompt.SystemPrompt != null)
+    {
+      request.Messages.Add(new Message("system", prompt.SystemPrompt.SystemPromptText));
+    }
 
     return request;
   }

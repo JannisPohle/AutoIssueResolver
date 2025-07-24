@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Response = AutoIssueResolver.AIConnector.Anthropic.Models.Response;
+using SystemPrompt = AutoIssueResolver.AIConnector.Anthropic.Models.SystemPrompt;
 
 namespace AutoIssueResolver.AIConnector.Anthropic;
 
@@ -26,7 +27,17 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(await PreparePromptText(prompt, cancellationToken)), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [new SystemPrompt(SYSTEM_PROMPT), new SystemPrompt(GetResponseFormatAsSystemMessage())], MAX_OUTPUT_TOKENS);
+    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(await PreparePromptText(prompt, cancellationToken)), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [], MAX_OUTPUT_TOKENS);
+
+    if (prompt.SystemPrompt != null)
+    {
+      request.System.Add(new SystemPrompt(prompt.SystemPrompt.SystemPromptText));
+    }
+
+    if (prompt.ResponseSchema != null)
+    {
+      request.System.Add(new SystemPrompt(GetResponseFormatAsSystemMessage(prompt.ResponseSchema.ResponseSchemaText)));
+    }
 
     return request;
   }
@@ -69,14 +80,14 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
     return new AiResponse(responseContent, usageMetadata);
   }
 
-  private static string GetResponseFormatAsSystemMessage()
+  private static string GetResponseFormatAsSystemMessage(string responseSchema)
   {
     var sb = new StringBuilder();
 
     sb.AppendLine("# Output format");
     sb.AppendLine("Respond in json format with the following schema:");
     sb.AppendLine("```json");
-    sb.AppendLine(ResponseSchema);
+    sb.AppendLine(responseSchema);
     sb.AppendLine("```");
 
     return sb.ToString();

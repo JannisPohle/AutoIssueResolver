@@ -40,8 +40,10 @@ public class GeminiConnector(
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var jsonSchema = ResponseSchema;
-    var request = new ChatRequest([new Content([new TextPart(await PreparePromptText(prompt, cancellationToken)),]),], SystemInstruction: CreateSystemPrompt(), GenerationConfig: new GenerationConfiguration("application/json", JsonNode.Parse(jsonSchema), MAX_OUTPUT_TOKENS));
+    var jsonSchema = prompt.ResponseSchema != null ? JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaText) : null;
+    var responseType = prompt.ResponseSchema?.SchemaType == SchemaType.Json ? "application/json" : "text/plain";
+    var systemPrompt = prompt.SystemPrompt != null ? CreateSystemPrompt(prompt.SystemPrompt.SystemPromptText) : null;
+    var request = new ChatRequest([new Content([new TextPart(await PreparePromptText(prompt, cancellationToken)),]),], SystemInstruction: systemPrompt, GenerationConfig: new GenerationConfiguration(responseType, jsonSchema, MAX_OUTPUT_TOKENS));
 
     return request;
   }
@@ -88,11 +90,11 @@ public class GeminiConnector(
     return url;
   }
 
-  private static Content CreateSystemPrompt()
+  private static Content CreateSystemPrompt(string promptText)
   {
     // This is static, so no logging needed here.
     return new Content([
-      new TextPart(SYSTEM_PROMPT),
+      new TextPart(promptText),
     ]);
   }
 

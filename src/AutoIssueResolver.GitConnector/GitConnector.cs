@@ -143,10 +143,10 @@ public class GitConnector(IOptions<SourceCodeConfiguration> configuration, ILogg
         continue;
       }
 
-      if (!string.IsNullOrWhiteSpace(folderFilter) && !relativePath.Contains(folderFilter, StringComparison.InvariantCultureIgnoreCase))
+      if (!string.IsNullOrWhiteSpace(folderFilter) && !relativePath.Contains(folderFilter, StringComparison.InvariantCultureIgnoreCase) && !relativePath.Contains("Program.cs", StringComparison.InvariantCultureIgnoreCase))
       {
         logger.LogDebug("Skipping file {FilePath} as it does not contain the folder filter {FolderFilter}", relativePath, folderFilter);
-        continue; // Skip files that do not match the folder filter
+        continue; // Skip files that do not match the folder filter, but exclude Program.cs, because it is the entry point of the application
       }
 
       files.Add(new SourceFile

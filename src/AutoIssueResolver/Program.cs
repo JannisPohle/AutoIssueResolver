@@ -129,6 +129,12 @@ builder.Services
 // AI Connectors
 builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT41)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT41Mini)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4o)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.o3)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.o3Mini)
+       .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.o4Mini)
        .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.DevstralSmall)
        .AddKeyedTransient<IAIConnector, OllamaConnector>(AIModels.Phi4)
        .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekChat)

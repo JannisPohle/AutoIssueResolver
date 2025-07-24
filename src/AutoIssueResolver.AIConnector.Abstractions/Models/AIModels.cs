@@ -12,4 +12,10 @@ public enum AIModels
   DevstralSmall,
   Phi4,
   DeepSeekChat,
+  GPT41,
+  GPT41Mini,
+  GPT4o,
+  o3,
+  o3Mini,
+  o4Mini
 }

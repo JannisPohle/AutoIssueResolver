@@ -21,6 +21,12 @@ public static class AiModelExtensions
     {
       AIModels.GeminiFlashLite => "gemini-2.0-flash-lite",
       AIModels.GPT4oNano => "gpt-4.1-nano",
+      AIModels.GPT41 => "gpt-4.1",
+      AIModels.GPT41Mini => "gpt-4.1-mini",
+      AIModels.GPT4o => "gpt-4o",
+      AIModels.o3 => "o3",
+      AIModels.o3Mini => "o3-mini",
+      AIModels.o4Mini => "o4-mini",
       AIModels.ClaudeHaiku3 => "claude-3-haiku-20240307",
       AIModels.DevstralSmall => "devstral-small-2505",
       AIModels.Phi4 => "phi4:latest",
@@ -37,16 +43,29 @@ public static class AiModelExtensions
   /// </exception>
   public static string GetModelVendor(this AIModels model)
   {
-    return model switch
+    switch (model)
     {
-      AIModels.GeminiFlashLite => "Google",
-      AIModels.GPT4oNano => "OpenAI",
-      AIModels.ClaudeHaiku3 => "Anthropic",
-      AIModels.DevstralSmall => "MistralAI",
-      AIModels.Phi4 => "Microsoft (Lokal)",
-      AIModels.DeepSeekChat => "DeepSeek",
-      _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
-    };
+      case AIModels.GeminiFlashLite:
+        return "Google";
+      case AIModels.GPT4oNano:
+      case AIModels.GPT41:
+      case AIModels.GPT41Mini:
+      case AIModels.GPT4o:
+      case AIModels.o3:
+      case AIModels.o3Mini:
+      case AIModels.o4Mini:
+        return "OpenAI";
+      case AIModels.ClaudeHaiku3:
+        return "Anthropic";
+      case AIModels.DevstralSmall:
+        return "MistralAI";
+      case AIModels.Phi4:
+        return "Microsoft (Lokal)";
+      case AIModels.DeepSeekChat:
+        return "DeepSeek";
+      default:
+        throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");
+    }
   }
 
   #endregion

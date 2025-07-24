@@ -141,7 +141,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
       throw new InvalidOperationException("The model is not supported by this connector.");
     }
 
-    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CodeGeneration, token: cancellationToken);
+    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CodeGeneration, prompt.RuleId, token: cancellationToken);
     UsageMetadata? usageMetadata = null;
 
     var context = ResilienceContextPool.Shared.Get(cancellationToken);

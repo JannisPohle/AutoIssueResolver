@@ -360,7 +360,7 @@ public class AutoFixOrchestrator(
 
   private async Task<List<SourceFile>> GetFileContents(Rule rule, CancellationToken cancellationToken)
   {
-    var files = await _git.GetAllFiles(folderFilter: rule.RuleId, cancellationToken: cancellationToken);
+    var files = await _git.GetAllFiles(folderFilter: rule.ShortIdentifier, cancellationToken: cancellationToken);
     if (files.Count == 0)
     {
       logger.LogWarning("No files found in the repository for rule {RuleId}.", rule.RuleId);

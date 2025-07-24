@@ -38,14 +38,13 @@ public class ReportingRepository(ReportingContext reportingContext, IRunMetadata
   }
 
   /// <inheritdoc />
-  public async Task<EfRequest> InitializeRequest(EfRequestType requestType, string? codeSmellReference = null, CancellationToken token = default)
+  public async Task<EfRequest> InitializeRequest(string? codeSmellReference = null, CancellationToken token = default)
   {
     var applicationRun = await FindCurrentApplicationRun(token);
 
     var request = new EfRequest
     {
       Id = Guid.NewGuid().ToString(), // Generate a unique ID for the request
-      RequestType = requestType,
       StartTimeUtc = DateTime.UtcNow,
       ApplicationRun = applicationRun,
       Retries = 0, // Initialize retries to 0

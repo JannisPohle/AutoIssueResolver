@@ -22,7 +22,7 @@ public interface IReportingRepository
   /// <summary>
   ///   Initializes a new request.
   /// </summary>
-  Task<EfRequest> InitializeRequest(EfRequestType requestType, string? codeSmellReference = null, CancellationToken token = default);
+  Task<EfRequest> InitializeRequest(string? codeSmellReference = null, CancellationToken token = default);
 
   /// <summary>
   ///   Increments the retry count for a request.

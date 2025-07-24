@@ -87,7 +87,7 @@ public class GeminiConnector(
 
   private async Task<string?> CreateCache(CachedContent cachedContent, CancellationToken cancellationToken = default)
   {
-    var requestReference = await reportingRepository.InitializeRequest(EfRequestType.CacheCreation, token: cancellationToken);
+    var requestReference = await reportingRepository.InitializeRequest(token: cancellationToken);
     UsageMetadata? usageMetadata = null;
 
     try

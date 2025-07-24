@@ -13,11 +13,6 @@ public class EfRequest
   public string Id { get; set; }
 
   /// <summary>
-  ///   Type of the request.
-  /// </summary>
-  public EfRequestType RequestType { get; set; }
-
-  /// <summary>
   ///   Total tokens used for this request.
   /// </summary>
   public int TotalTokensUsed { get; set; }

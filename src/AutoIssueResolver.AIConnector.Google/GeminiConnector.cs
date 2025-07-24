@@ -92,7 +92,7 @@ public class GeminiConnector(
     // This is static, so no logging needed here.
     return new Content([
       new TextPart(promptText),
-    ]);
+    ], "system");
   }
 
   #endregion

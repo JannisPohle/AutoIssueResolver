@@ -17,7 +17,7 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
 {
   private const string API_PATH_RESPONSES = "v1/responses";
 
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.GPT4oNano,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.GPT4oNano, AIModels.o3, AIModels.o3Mini, AIModels.o4Mini, AIModels.GPT4o, AIModels.GPT41, AIModels.GPT41Mini];
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {

@@ -17,7 +17,7 @@ namespace AutoIssueResolver.AIConnector.DeepSeek;
 public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServices("deepseek")] HttpClient httpClient, IOptions<AiAgentConfiguration> configuration, IReportingRepository reportingRepository): AIConnectorBase(logger, configuration, reportingRepository, httpClient)
 {
   private const string API_PATH_CHAT = "chat/completions";
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.DeepSeekChat,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.DeepSeekChat, AIModels.DeepSeekReasoner];
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {

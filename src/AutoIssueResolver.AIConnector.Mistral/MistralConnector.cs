@@ -25,7 +25,7 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
     var schema = prompt.ResponseSchema != null ? new ResponseFormat(new JsonSchema(JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties), "response_schema")) : null;
 
     var request = new Request(configuration.Value.Model.GetModelName(), [new Message("user", prompt.PromptText)], schema,
-                              MAX_OUTPUT_TOKENS);
+                              GetMaxOutputTokens(configuration.Value.Model));
 
     if (prompt.SystemPrompt != null)
     {

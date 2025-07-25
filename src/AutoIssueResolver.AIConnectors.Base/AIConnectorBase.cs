@@ -2,6 +2,7 @@
 using System.Text.Json;
 using AutoIssueResolver.AIConnector.Abstractions;
 using AutoIssueResolver.AIConnector.Abstractions.Configuration;
+using AutoIssueResolver.AIConnector.Abstractions.Extensions;
 using AutoIssueResolver.AIConnector.Abstractions.Models;
 using AutoIssueResolver.AIConnectors.Base.UnifiedModels;
 using AutoIssueResolver.Persistence.Abstractions.Entities;
@@ -17,7 +18,7 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 {
   #region Static
 
-  protected const int MAX_OUTPUT_TOKENS = 2500;
+  private const int MAX_OUTPUT_TOKENS_BASE_VALUE = 4000;
 
   #endregion
 
@@ -224,6 +225,19 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
         }
       },
     }).Build();
+
+  protected int GetMaxOutputTokens(AIModels model)
+  {
+    var maxOutputTokens = MAX_OUTPUT_TOKENS_BASE_VALUE;
+
+    // If the model is a reasoning model, maximum output tokens are increased
+    if (model.IsReasoningModel())
+    {
+      maxOutputTokens *= 4;
+    }
+
+    return maxOutputTokens;
+  }
 
   #endregion
 }

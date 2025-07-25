@@ -23,7 +23,7 @@ public class OpenAIConnector(ILogger<OpenAIConnector> logger, [FromKeyedServices
   {
     var schema = prompt.ResponseSchema != null ? new TextOptions(new Format("response_schema", JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaTextWithAdditionalProperties))) : null;
 
-    var request = new Request(prompt.PromptText, configuration.Value.Model.GetModelName(), prompt.SystemPrompt?.SystemPromptText, schema, MAX_OUTPUT_TOKENS);
+    var request = new Request(prompt.PromptText, configuration.Value.Model.GetModelName(), prompt.SystemPrompt?.SystemPromptText, schema, GetMaxOutputTokens(configuration.Value.Model));
 
     return request;
   }

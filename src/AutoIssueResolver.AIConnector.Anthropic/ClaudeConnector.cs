@@ -25,7 +25,7 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {
-    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(prompt.PromptText), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [], MAX_OUTPUT_TOKENS);
+    var request = new Request(configuration.Value.Model.GetModelName(), [new Message(prompt.PromptText), new Message(ASSISTANT_MESSAGE_PREFIX, "assistant")], [], GetMaxOutputTokens(configuration.Value.Model));
 
     if (prompt.SystemPrompt != null)
     {

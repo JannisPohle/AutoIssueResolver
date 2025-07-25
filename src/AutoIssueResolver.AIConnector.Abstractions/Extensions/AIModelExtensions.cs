@@ -68,5 +68,34 @@ public static class AiModelExtensions
     }
   }
 
+  /// <summary>
+  /// Returns a value indicating whether the specified AI model is a reasoning model.
+  /// </summary>
+  /// <param name="model"></param>
+  /// <returns></returns>
+  /// <exception cref="ArgumentOutOfRangeException"></exception>
+  public static bool IsReasoningModel(this AIModels model)
+  {
+    switch (model)
+    {
+      case AIModels.GeminiFlashLite:
+      case AIModels.GPT4oNano:
+      case AIModels.GPT41:
+      case AIModels.GPT41Mini:
+      case AIModels.GPT4o:
+      case AIModels.ClaudeHaiku3:
+      case AIModels.DevstralSmall:
+      case AIModels.Phi4:
+      case AIModels.DeepSeekChat:
+        return false;
+      case AIModels.o3:
+      case AIModels.o3Mini:
+      case AIModels.o4Mini:
+        return true;
+      default:
+        throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");
+    }
+  }
+
   #endregion
 }

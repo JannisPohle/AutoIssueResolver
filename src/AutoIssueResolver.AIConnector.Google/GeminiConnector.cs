@@ -40,7 +40,7 @@ public class GeminiConnector(
     var jsonSchema = prompt.ResponseSchema != null ? JsonNode.Parse(prompt.ResponseSchema.ResponseSchemaText) : null;
     var responseType = prompt.ResponseSchema?.SchemaType == SchemaType.Json ? "application/json" : "text/plain";
     var systemPrompt = prompt.SystemPrompt != null ? CreateSystemPrompt(prompt.SystemPrompt.SystemPromptText) : null;
-    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], SystemInstruction: systemPrompt, GenerationConfig: new GenerationConfiguration(responseType, jsonSchema, MAX_OUTPUT_TOKENS));
+    var request = new ChatRequest([new Content([new TextPart(prompt.PromptText),]),], SystemInstruction: systemPrompt, GenerationConfig: new GenerationConfiguration(responseType, jsonSchema, GetMaxOutputTokens(configuration.Value.Model)));
 
     return request;
   }

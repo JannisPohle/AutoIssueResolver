@@ -25,7 +25,7 @@ public class DeepSeekConnector(ILogger<DeepSeekConnector> logger, [FromKeyedServ
                               configuration.Value.Model.GetModelName(),
                               [new Message(prompt.PromptText)],
                               new ResponseFormat(),
-                              MAX_OUTPUT_TOKENS);
+                              GetMaxOutputTokens(configuration.Value.Model));
 
     if (prompt.SystemPrompt != null)
     {

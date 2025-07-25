@@ -128,6 +128,8 @@ builder.Services
 
 // AI Connectors
 builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.GeminiFlashLite)
+       .AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.Gemini20Flash)
+       .AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.Gemini25Pro)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT4oNano)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT41)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.GPT41Mini)

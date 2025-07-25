@@ -20,6 +20,8 @@ public static class AiModelExtensions
     return model switch
     {
       AIModels.GeminiFlashLite => "gemini-2.0-flash-lite",
+      AIModels.Gemini25Pro => "gemini-2.5-pro",
+      AIModels.Gemini20Flash => "gemini-2.0-flash",
       AIModels.GPT4oNano => "gpt-4.1-nano",
       AIModels.GPT41 => "gpt-4.1",
       AIModels.GPT41Mini => "gpt-4.1-mini",
@@ -46,6 +48,8 @@ public static class AiModelExtensions
     switch (model)
     {
       case AIModels.GeminiFlashLite:
+      case AIModels.Gemini20Flash:
+      case AIModels.Gemini25Pro:
         return "Google";
       case AIModels.GPT4oNano:
       case AIModels.GPT41:
@@ -79,6 +83,7 @@ public static class AiModelExtensions
     switch (model)
     {
       case AIModels.GeminiFlashLite:
+      case AIModels.Gemini20Flash:
       case AIModels.GPT4oNano:
       case AIModels.GPT41:
       case AIModels.GPT41Mini:
@@ -88,6 +93,7 @@ public static class AiModelExtensions
       case AIModels.Phi4:
       case AIModels.DeepSeekChat:
         return false;
+      case AIModels.Gemini25Pro:
       case AIModels.o3:
       case AIModels.o3Mini:
       case AIModels.o4Mini:

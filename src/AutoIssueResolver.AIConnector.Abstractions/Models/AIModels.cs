@@ -7,6 +7,8 @@ public enum AIModels
 {
   None,
   GeminiFlashLite,
+  Gemini25Pro,
+  Gemini20Flash,
   GPT4oNano,
   ClaudeHaiku3,
   DevstralSmall,

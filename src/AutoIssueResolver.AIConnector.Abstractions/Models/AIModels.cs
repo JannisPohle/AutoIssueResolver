@@ -14,6 +14,7 @@ public enum AIModels
   DevstralSmall,
   Phi4,
   DeepSeekChat,
+  DeepSeekReasoner,
   GPT41,
   GPT41Mini,
   GPT4o,

@@ -33,6 +33,7 @@ public static class AiModelExtensions
       AIModels.DevstralSmall => "devstral-small-2505",
       AIModels.Phi4 => "phi4:latest",
       AIModels.DeepSeekChat => "deepseek-chat",
+      AIModels.DeepSeekReasoner => "deepseek-reasoner",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
     };
   }
@@ -66,6 +67,7 @@ public static class AiModelExtensions
       case AIModels.Phi4:
         return "Microsoft (Lokal)";
       case AIModels.DeepSeekChat:
+      case AIModels.DeepSeekReasoner:
         return "DeepSeek";
       default:
         throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");
@@ -97,6 +99,7 @@ public static class AiModelExtensions
       case AIModels.o3:
       case AIModels.o3Mini:
       case AIModels.o4Mini:
+      case AIModels.DeepSeekReasoner:
         return true;
       default:
         throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");

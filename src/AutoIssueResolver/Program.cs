@@ -141,6 +141,9 @@ builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.Gemin
        .AddKeyedTransient<IAIConnector, OllamaConnector>(AIModels.Phi4)
        .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekChat)
        .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekReasoner)
+       .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku35)
+       .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeSonnet35)
+       .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeSonnet37)
        .AddKeyedTransient<IAIConnector, ClaudeConnector>(AIModels.ClaudeHaiku3);
 
 // Code Analysis Connectors

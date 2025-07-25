@@ -21,7 +21,7 @@ public class ClaudeConnector(ILogger<ClaudeConnector> logger, IOptions<AiAgentCo
   //To force Claude to actually return the response in the expected format, we need to prefill i'ts response with the start of the json
   private const string ASSISTANT_MESSAGE_PREFIX = "{ \"replacements\":[{\"filePath\": \"";
 
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.ClaudeHaiku3,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.ClaudeHaiku3, AIModels.ClaudeHaiku35, AIModels.ClaudeSonnet35, AIModels.ClaudeSonnet37];
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {

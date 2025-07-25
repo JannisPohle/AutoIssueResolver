@@ -30,6 +30,9 @@ public static class AiModelExtensions
       AIModels.o3Mini => "o3-mini",
       AIModels.o4Mini => "o4-mini",
       AIModels.ClaudeHaiku3 => "claude-3-haiku-20240307",
+      AIModels.ClaudeHaiku35 => "claude-3-5-haiku-latest",
+      AIModels.ClaudeSonnet35 => "claude-3-5-sonnet-latest",
+      AIModels.ClaudeSonnet37 => "claude-3-7-sonnet-latest",
       AIModels.DevstralSmall => "devstral-small-2505",
       AIModels.Phi4 => "phi4:latest",
       AIModels.DeepSeekChat => "deepseek-chat",
@@ -61,6 +64,9 @@ public static class AiModelExtensions
       case AIModels.o4Mini:
         return "OpenAI";
       case AIModels.ClaudeHaiku3:
+      case AIModels.ClaudeHaiku35:
+      case AIModels.ClaudeSonnet35:
+      case AIModels.ClaudeSonnet37:
         return "Anthropic";
       case AIModels.DevstralSmall:
         return "MistralAI";
@@ -91,6 +97,8 @@ public static class AiModelExtensions
       case AIModels.GPT41Mini:
       case AIModels.GPT4o:
       case AIModels.ClaudeHaiku3:
+      case AIModels.ClaudeHaiku35:
+      case AIModels.ClaudeSonnet35:
       case AIModels.DevstralSmall:
       case AIModels.Phi4:
       case AIModels.DeepSeekChat:
@@ -100,6 +108,7 @@ public static class AiModelExtensions
       case AIModels.o3Mini:
       case AIModels.o4Mini:
       case AIModels.DeepSeekReasoner:
+      case AIModels.ClaudeSonnet37:
         return true;
       default:
         throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");

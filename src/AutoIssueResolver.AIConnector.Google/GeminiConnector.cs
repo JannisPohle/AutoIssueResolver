@@ -31,7 +31,7 @@ public class GeminiConnector(
 
   #endregion
 
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.GeminiFlashLite,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.GeminiFlashLite, AIModels.Gemini20Flash, AIModels.Gemini25Pro];
 
   #region Methods
 

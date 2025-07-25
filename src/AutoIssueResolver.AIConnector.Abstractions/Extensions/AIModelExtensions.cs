@@ -35,7 +35,11 @@ public static class AiModelExtensions
       AIModels.ClaudeSonnet37 => "claude-3-7-sonnet-latest",
       AIModels.DevstralSmall => "devstral-small-2505",
       AIModels.Codestral => "codestral-latest",
-      AIModels.Phi4 => "phi4:latest",
+      AIModels.Phi4Local => "phi4:latest",
+      AIModels.DevstralLocal => "devstral:latest",
+      AIModels.Gemma3Local => "gemma3:latest",
+      AIModels.CodeLlamaLocal => "codellama:13b",
+      AIModels.DeepSeekReasonerLocal => "deepseek-r1:8b",
       AIModels.DeepSeekChat => "deepseek-chat",
       AIModels.DeepSeekReasoner => "deepseek-reasoner",
       _ => throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model."),
@@ -56,6 +60,8 @@ public static class AiModelExtensions
       case AIModels.Gemini20Flash:
       case AIModels.Gemini25Pro:
         return "Google";
+      case AIModels.Gemma3Local:
+        return "Google (Lokal)";
       case AIModels.GPT4oNano:
       case AIModels.GPT41:
       case AIModels.GPT41Mini:
@@ -72,11 +78,17 @@ public static class AiModelExtensions
       case AIModels.DevstralSmall:
       case AIModels.Codestral:
         return "MistralAI";
-      case AIModels.Phi4:
+      case AIModels.DevstralLocal:
+        return "MistralAI (Lokal)";
+      case AIModels.Phi4Local:
         return "Microsoft (Lokal)";
+      case AIModels.DeepSeekReasonerLocal:
+        return "DeepSeek (Lokal)";
       case AIModels.DeepSeekChat:
       case AIModels.DeepSeekReasoner:
         return "DeepSeek";
+      case AIModels.CodeLlamaLocal:
+        return "Meta (Lokal)";
       default:
         throw new ArgumentOutOfRangeException(nameof(model), model, "Unsupported AI model.");
     }
@@ -103,7 +115,10 @@ public static class AiModelExtensions
       case AIModels.ClaudeSonnet35:
       case AIModels.DevstralSmall:
       case AIModels.Codestral:
-      case AIModels.Phi4:
+      case AIModels.Phi4Local:
+      case AIModels.DevstralLocal:
+      case AIModels.Gemma3Local:
+      case AIModels.CodeLlamaLocal:
       case AIModels.DeepSeekChat:
         return false;
       case AIModels.Gemini25Pro:
@@ -111,6 +126,7 @@ public static class AiModelExtensions
       case AIModels.o3Mini:
       case AIModels.o4Mini:
       case AIModels.DeepSeekReasoner:
+      case AIModels.DeepSeekReasonerLocal:
       case AIModels.ClaudeSonnet37:
         return true;
       default:

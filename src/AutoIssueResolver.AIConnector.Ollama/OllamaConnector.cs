@@ -17,7 +17,7 @@ public class OllamaConnector(ILogger<OllamaConnector> logger, IOptions<AiAgentCo
 {
   private const string API_PATH_GENERATE = "api/generate";
 
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.Phi4,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.Phi4Local, AIModels.DevstralLocal, AIModels.CodeLlamaLocal, AIModels.Gemma3Local, AIModels.DeepSeekReasonerLocal];
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {

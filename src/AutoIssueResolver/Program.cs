@@ -138,6 +138,7 @@ builder.Services.AddKeyedTransient<IAIConnector, GeminiConnector>(AIModels.Gemin
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.o3Mini)
        .AddKeyedTransient<IAIConnector, OpenAIConnector>(AIModels.o4Mini)
        .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.DevstralSmall)
+       .AddKeyedTransient<IAIConnector, MistralConnector>(AIModels.Codestral)
        .AddKeyedTransient<IAIConnector, OllamaConnector>(AIModels.Phi4)
        .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekChat)
        .AddKeyedTransient<IAIConnector, DeepSeekConnector>(AIModels.DeepSeekReasoner)

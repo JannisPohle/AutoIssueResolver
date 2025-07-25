@@ -18,7 +18,7 @@ public class MistralConnector(ILogger<MistralConnector> logger, [FromKeyedServic
 {
   private const string API_PATH_CHAT = "v1/chat/completions";
 
-  protected override List<AIModels> SupportedModels { get; } = [AIModels.DevstralSmall,];
+  protected override List<AIModels> SupportedModels { get; } = [AIModels.DevstralSmall, AIModels.Codestral];
 
   protected override async Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken)
   {

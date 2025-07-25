@@ -34,6 +34,7 @@ public static class AiModelExtensions
       AIModels.ClaudeSonnet35 => "claude-3-5-sonnet-latest",
       AIModels.ClaudeSonnet37 => "claude-3-7-sonnet-latest",
       AIModels.DevstralSmall => "devstral-small-2505",
+      AIModels.Codestral => "codestral-latest",
       AIModels.Phi4 => "phi4:latest",
       AIModels.DeepSeekChat => "deepseek-chat",
       AIModels.DeepSeekReasoner => "deepseek-reasoner",
@@ -69,6 +70,7 @@ public static class AiModelExtensions
       case AIModels.ClaudeSonnet37:
         return "Anthropic";
       case AIModels.DevstralSmall:
+      case AIModels.Codestral:
         return "MistralAI";
       case AIModels.Phi4:
         return "Microsoft (Lokal)";
@@ -100,6 +102,7 @@ public static class AiModelExtensions
       case AIModels.ClaudeHaiku35:
       case AIModels.ClaudeSonnet35:
       case AIModels.DevstralSmall:
+      case AIModels.Codestral:
       case AIModels.Phi4:
       case AIModels.DeepSeekChat:
         return false;

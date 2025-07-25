@@ -15,6 +15,7 @@ public enum AIModels
   ClaudeSonnet35,
   ClaudeSonnet37,
   DevstralSmall,
+  Codestral,
   Phi4,
   DeepSeekChat,
   DeepSeekReasoner,

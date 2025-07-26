@@ -102,51 +102,59 @@ public abstract class AIConnectorBase(ILogger<AIConnectorBase> logger, IOptions<
 
   private async Task<(Response<T>, UsageMetadata)> GetAiResponseInternal<T>(Prompt prompt, CancellationToken cancellationToken)
   {
-    logger.LogDebug("Preparing content for API request.");
-    var request = await CreateRequestObject(prompt, cancellationToken);
-
-    logger.LogDebug("Sending request to API: {Url}", GetResponsesApiPath());
-    var response = await httpClient.PostAsJsonAsync(GetResponsesApiPath(), request, cancellationToken);
-
-    if (!response.IsSuccessStatusCode)
-    {
-      var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-      logger.LogError("Failed to get response from API ({ReasonPhrase}): {Content}", response.ReasonPhrase, errorContent);
-
-      throw new UnsuccessfulResultException($"Failed to get response from API ({response.ReasonPhrase}): {errorContent}", false);
-    }
-
-    logger.LogDebug("Reading response from API.");
-    var aiResponse = await ParseResponse(response, cancellationToken);
-
-    T? parsedResponse;
-
     try
     {
-      parsedResponse = JsonSerializer.Deserialize<T>(aiResponse.ResponseText, JsonSerializerOptions.Web);
-    }
-    catch (JsonException ex)
-    {
-      if (TryCleanupAIResponseAndDeserialize<T>(aiResponse.ResponseText, out parsedResponse))
-      {
-        logger.LogDebug("Successfully cleaned up AI response and deserialized replacements.");
-      }
-      else
-      {
-        logger.LogError(ex, "Failed to deserialize AI response: {ResponseText}", aiResponse.ResponseText);
-        throw new UnsuccessfulResultException("Failed to deserialize AI response", ex, true) { UsageMetadata = aiResponse.UsageMetadata, };
-      }
-    }
-    catch (Exception e)
-    {
-      logger.LogError(e, "Failed to parse replacement response from API.");
-      throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
-    }
+      logger.LogDebug("Preparing content for API request.");
+      var request = await CreateRequestObject(prompt, cancellationToken);
 
-    logger.LogInformation("Received response from API and tried to deserialize to target type {ResponseType} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",
-                          typeof(T), aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
+      logger.LogDebug("Sending request to API: {Url}", GetResponsesApiPath());
+      var response = await httpClient.PostAsJsonAsync(GetResponsesApiPath(), request, cancellationToken);
 
-    return (new Response<T>(aiResponse.ResponseText, parsedResponse), aiResponse.UsageMetadata);
+      if (!response.IsSuccessStatusCode)
+      {
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogError("Failed to get response from API ({ReasonPhrase}): {Content}", response.ReasonPhrase, errorContent);
+
+        throw new UnsuccessfulResultException($"Failed to get response from API ({response.ReasonPhrase}): {errorContent}", false);
+      }
+
+      logger.LogDebug("Reading response from API.");
+      var aiResponse = await ParseResponse(response, cancellationToken);
+
+      T? parsedResponse;
+
+      try
+      {
+        parsedResponse = JsonSerializer.Deserialize<T>(aiResponse.ResponseText, JsonSerializerOptions.Web);
+      }
+      catch (JsonException ex)
+      {
+        if (TryCleanupAIResponseAndDeserialize<T>(aiResponse.ResponseText, out parsedResponse))
+        {
+          logger.LogDebug("Successfully cleaned up AI response and deserialized replacements.");
+        }
+        else
+        {
+          logger.LogError(ex, "Failed to deserialize AI response: {ResponseText}", aiResponse.ResponseText);
+          throw new UnsuccessfulResultException("Failed to deserialize AI response", ex, true) { UsageMetadata = aiResponse.UsageMetadata, };
+        }
+      }
+      catch (Exception e)
+      {
+        logger.LogError(e, "Failed to parse replacement response from API.");
+        throw new UnsuccessfulResultException("Failed to parse replacement response from API.", e, true) {  UsageMetadata = aiResponse.UsageMetadata, };
+      }
+
+      logger.LogInformation("Received response from API and tried to deserialize to target type {ResponseType} replacements, using a total of {TotalTokenCount} tokens (Cached: {CachedTokens}, Request: {RequestTokens}, Response: {ResponseTokens}) .",
+                            typeof(T), aiResponse.UsageMetadata.ActualUsedTokens, aiResponse.UsageMetadata.CachedContentTokenCount, aiResponse.UsageMetadata.ActualRequestTokenCount, aiResponse.UsageMetadata.ActualResponseTokenCount);
+
+      return (new Response<T>(aiResponse.ResponseText, parsedResponse), aiResponse.UsageMetadata);
+    }
+    catch (Exception e) when (e is not UnsuccessfulResultException)
+    {
+      logger.LogError(e, "An error occurred while trying to get a response from the AI model.");
+      throw new UnsuccessfulResultException("An error occurred while trying to get a response from the AI model.", e, true);
+    }
   }
 
   protected abstract Task<object> CreateRequestObject(Prompt prompt, CancellationToken cancellationToken);
